@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import * as XLSX from "xlsx";
 
 const fixture = fileURLToPath(new URL("../fixtures/comentarios.xlsx", import.meta.url));
 const result = {
@@ -142,4 +143,46 @@ test("remoção descarta resultados; configurações duram somente até recarreg
   await page.reload();
   await expect(page.getByLabel("Nomes conhecidos", { exact: true })).toHaveValue("");
   await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+});
+
+test("comparação pagina as opções e localiza IDs originais com lacunas", async ({ page }) => {
+  await setup(page);
+  const workbook = XLSX.utils.book_new();
+  const rows = [["Comentário"], ...Array.from({ length: 220 }, (_, i) => [[`Comentário sintético ${i + 1}`], []]).flat()];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), "Lacunas");
+  await page.locator('input[type="file"]').setInputFiles({ name: "paginada.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) });
+  const select = page.getByLabel("Comentário para comparar", { exact: true });
+  const raw = page.getByRole("article", { name: "RAW · ORIGINAL" });
+  await expect(select.locator("option")).toHaveCount(100);
+  await expect(select).toHaveValue("2");
+  await page.getByRole("button", { name: "Próximos comentários" }).click();
+  await expect(select).toHaveValue("202");
+  await expect(raw).toContainText("Comentário sintético 101");
+  await page.getByLabel("Ir para o ID original").fill("440");
+  await page.getByRole("button", { name: "Localizar comentário" }).click();
+  await expect(select).toHaveValue("440");
+  await expect(select.locator("option")).toHaveCount(20);
+  await expect(raw).toContainText("Comentário sintético 220");
+  await expect(page.getByRole("button", { name: "Próximos comentários" })).toBeDisabled();
+  await page.getByLabel("Ir para o ID original").fill("3");
+  await page.getByRole("button", { name: "Localizar comentário" }).click();
+  await expect(page.getByText("Não há comentário com esse ID nesta planilha.")).toBeVisible();
+  await expect(select).toHaveValue("440");
+  await page.getByRole("button", { name: "Comentários anteriores" }).click();
+  await expect(select).toHaveValue("202");
+  await expect(page.getByText("Não há comentário com esse ID nesta planilha.")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Localizar comentário" }).click();
+  await expect(page.getByText("Não há comentário com esse ID nesta planilha.")).toBeVisible();
+  const replacement = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(replacement, XLSX.utils.aoa_to_sheet([["Comentário"], ...Array.from({ length: 120 }, (_, i) => [`Novo comentário ${i + 1}`])]), "Sem lacunas");
+  await page.locator('input[type="file"]').setInputFiles({ name: "outra.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: XLSX.write(replacement, { type: "buffer", bookType: "xlsx" }) });
+  await expect(page.getByText("120 comentários identificados e carregados em memória.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Não há comentário com esse ID nesta planilha.")).toHaveCount(0);
+  await page.getByRole("button", { name: "Localizar comentário" }).click();
+  await expect(select).toHaveValue("3");
+  await upload(page);
+  await expect(select.locator("option")).toHaveCount(3);
+  await expect(select).toHaveValue("2");
+  await expect(page.getByRole("navigation", { name: "Páginas de comentários para comparar" })).toHaveCount(0);
 });

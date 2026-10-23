@@ -15,7 +15,7 @@ function escapeRegExp(value: string) {
 }
 
 /** Compara em NFC; copia os trechos não mascarados da string original. */
-function maskCanonicalMatches(text: string, pattern: RegExp): string {
+function maskCanonicalMatches(text: string, pattern: RegExp, getSegmenter: () => Intl.Segmenter): string {
   const normalized = text.normalize("NFC");
   if (normalized === text) return text.replace(pattern, SENSITIVE_MARKER);
   const matches = [...normalized.matchAll(pattern)];
@@ -24,7 +24,7 @@ function maskCanonicalMatches(text: string, pattern: RegExp): string {
   // Grafemas mantêm acentos combinantes e pares substitutos juntos. Um match
   // parcial de grafema mascara o grafema inteiro, sem produzir Unicode quebrado.
   let normalizedOffset = 0;
-  const segments = [...new Intl.Segmenter("pt", { granularity: "grapheme" }).segment(text)]
+  const segments = [...getSegmenter().segment(text)]
     .map(({ segment, index }) => {
       const start = normalizedOffset;
       normalizedOffset += segment.normalize("NFC").length;
@@ -81,9 +81,12 @@ export function sanitizeComments(
   }
 
   const sensitivePattern = new RegExp(patterns.map((pattern) => `(?:${pattern})`).join("|"), "giu");
+  // Reutiliza apenas quando necessário, sem cache ou estado persistente.
+  let segmenter: Intl.Segmenter | undefined;
+  const getSegmenter = () => segmenter ??= new Intl.Segmenter("pt", { granularity: "grapheme" });
   return Object.freeze(raw.map((comment) => Object.freeze({
     id: comment.id,
     // Uma única passagem evita que uma substituição altere a marca de outra.
-    text: maskCanonicalMatches(comment.text, sensitivePattern),
+    text: maskCanonicalMatches(comment.text, sensitivePattern, getSegmenter),
   })));
 }

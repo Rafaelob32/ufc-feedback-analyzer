@@ -1,0 +1,170 @@
+{
+  "date": "2026-10-23",
+  "baselineCommit": "ac9d208",
+  "scenario": "Sintético: primeira aba, uma coluna, comentários NFD de tamanho semelhante e dicionário com 100 nomes; sem inferência.",
+  "method": "Uma execução estendida antes e última execução completa após a correção. Tempos de automação ponta a ponta; não são distribuição estatística nem garantia de desempenho. Heap observado é estimativa arredondada do Chromium, não pico de memória.",
+  "before": [
+    {
+      "comments": 100,
+      "names": 100,
+      "fileBytes": 10548,
+      "importedMs": 122,
+      "editMs": 62,
+      "optionCount": 100,
+      "domNodes": 255,
+      "longTasks": 0,
+      "longestTaskMs": 0,
+      "observedHeapBytes": 10000000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    },
+    {
+      "comments": 1000,
+      "names": 100,
+      "fileBytes": 27512,
+      "importedMs": 144,
+      "editMs": 77,
+      "optionCount": 1000,
+      "domNodes": 1155,
+      "longTasks": 1,
+      "longestTaskMs": 58,
+      "observedHeapBytes": 19300000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    },
+    {
+      "comments": 10000,
+      "names": 100,
+      "fileBytes": 186310,
+      "importedMs": 861,
+      "editMs": 342,
+      "optionCount": 10000,
+      "domNodes": 10155,
+      "longTasks": 3,
+      "longestTaskMs": 281,
+      "observedHeapBytes": 81400000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    },
+    {
+      "comments": 49999,
+      "names": 100,
+      "fileBytes": 861045,
+      "importedMs": 2587,
+      "editMs": 1379,
+      "optionCount": 49999,
+      "domNodes": 50154,
+      "longTasks": 4,
+      "longestTaskMs": 1198,
+      "observedHeapBytes": 157000000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    }
+  ],
+  "after": [
+    {
+      "comments": 100,
+      "names": 100,
+      "fileBytes": 10548,
+      "importedMs": 108,
+      "editMs": 52,
+      "optionCount": 100,
+      "domNodes": 255,
+      "longTasks": 0,
+      "longestTaskMs": 0,
+      "observedHeapBytes": 10000000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    },
+    {
+      "comments": 1000,
+      "names": 100,
+      "fileBytes": 27512,
+      "importedMs": 122,
+      "editMs": 64,
+      "optionCount": 100,
+      "domNodes": 265,
+      "longTasks": 1,
+      "longestTaskMs": 50,
+      "observedHeapBytes": 11200000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    },
+    {
+      "comments": 10000,
+      "names": 100,
+      "fileBytes": 186310,
+      "importedMs": 290,
+      "editMs": 177,
+      "optionCount": 100,
+      "domNodes": 265,
+      "longTasks": 2,
+      "longestTaskMs": 192,
+      "observedHeapBytes": 24500000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    },
+    {
+      "comments": 49999,
+      "names": 100,
+      "fileBytes": 861045,
+      "importedMs": 979,
+      "editMs": 631,
+      "optionCount": 100,
+      "domNodes": 265,
+      "longTasks": 3,
+      "longestTaskMs": 820,
+      "observedHeapBytes": 91700000,
+      "environment": {
+        "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+        "logicalCpus": 12,
+        "ramBytes": 8021442560,
+        "os": "7.2.11-200.fc44.x86_64",
+        "node": "v24.14.0",
+        "chromium": "156.0.8078.4"
+      }
+    }
+  ]
+}

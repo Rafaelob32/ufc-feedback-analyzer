@@ -26,8 +26,21 @@ export default function SanitizationPanel({
   rawComments, sanitizedComments, settings, onSettingsChange,
 }: SanitizationPanelProps) {
   const [previewId, setPreviewId] = useState<number | null>(null);
-  const original = rawComments.find((comment) => comment.id === previewId) ?? rawComments[0];
+  const [lookupId, setLookupId] = useState("");
+  const [lookupError, setLookupError] = useState("");
+  const selectedIndex = previewId === null ? 0 : Math.max(0, rawComments.findIndex((comment) => comment.id === previewId));
+  const original = rawComments[selectedIndex];
   const sanitized = sanitizedComments.find((comment) => comment.id === original?.id);
+  const pageSize = 100;
+  const pageStart = Math.floor(selectedIndex / pageSize) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, rawComments.length);
+  // Trocar a planilha pode tornar válido um ID anteriormente inexistente.
+  const invalidLookup = Boolean(lookupError) && !rawComments.some((comment) => comment.id === Number(lookupId));
+
+  function showComment(id: number) {
+    setPreviewId(id);
+    setLookupError("");
+  }
 
   return (
     <section id="higienizacao" aria-labelledby="sanitization-title" className="mt-6 scroll-mt-6 rounded-2xl border border-slate-200 bg-white">
@@ -88,13 +101,38 @@ export default function SanitizationPanel({
             <select
               id="preview-comment"
               value={original.id}
-              onChange={(event) => setPreviewId(Number(event.target.value))}
+              onChange={(event) => showComment(Number(event.target.value))}
               className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285b9f]"
             >
-              {rawComments.map((comment) => (
+              {rawComments.slice(pageStart, pageEnd).map((comment) => (
                 <option key={comment.id} value={comment.id}>ID {comment.id} · Linha {comment.rowIndex} · {comment.sheetName}</option>
               ))}
             </select>
+            {rawComments.length > pageSize && (
+              <div className="mt-3 space-y-3">
+                <nav aria-label="Páginas de comentários para comparar" className="flex flex-wrap items-center gap-3 text-sm">
+                  <button type="button" disabled={pageStart === 0} onClick={() => showComment(rawComments[pageStart - pageSize].id)} className="min-h-11 rounded-lg border border-slate-300 px-3 disabled:opacity-40">Comentários anteriores</button>
+                  <p role="status">Comentários {pageStart + 1}–{pageEnd} de {rawComments.length}</p>
+                  <button type="button" disabled={pageEnd === rawComments.length} onClick={() => showComment(rawComments[pageEnd].id)} className="min-h-11 rounded-lg border border-slate-300 px-3 disabled:opacity-40">Próximos comentários</button>
+                </nav>
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  const id = Number(lookupId);
+                  if (!Number.isSafeInteger(id) || !rawComments.some((comment) => comment.id === id)) {
+                    setLookupError("Não há comentário com esse ID nesta planilha.");
+                    return;
+                  }
+                  showComment(id);
+                }} className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label htmlFor="lookup-comment" className="block text-xs font-semibold text-slate-700">Ir para o ID original</label>
+                    <input id="lookup-comment" type="number" min="1" step="1" required value={lookupId} onChange={(event) => { setLookupId(event.target.value); setLookupError(""); }} aria-describedby={invalidLookup ? "lookup-error" : undefined} aria-invalid={invalidLookup} className="mt-1 min-h-11 w-36 rounded-lg border border-slate-300 px-3 text-sm" />
+                  </div>
+                  <button type="submit" className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-medium">Localizar comentário</button>
+                </form>
+                {invalidLookup && <p id="lookup-error" role="alert" className="text-sm text-red-800">{lookupError}</p>}
+              </div>
+            )}
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <article aria-labelledby="raw-preview-title" className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
