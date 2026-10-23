@@ -16,12 +16,17 @@ em [MAINTENANCE-2026-10-23](MAINTENANCE-2026-10-23.md).
 | 3 — Privacidade/descarte | UI e contratos alinhados: remover preserva configurações; IDs/Zod não provam acurácia ou conformidade jurídica |
 | 4 — Lint | Reavaliado; cinco entradas altas da mesma cadeia permanecem. ESLint 9 sem suporte; tentativa com 10 revelou plugins incompatíveis e foi revertida |
 | 5 — E2E | Suíte Playwright criada para export estático, fluxo, cancelamento, alterações, rejeição de IDs e descarte; resultados no relatório de manutenção |
-| 6 — TCC | Metadados locais registrados e protocolo preparado; anotação humana, população e critérios de aceite ainda pendentes |
-| 7 — Ambiente/capacidade | Runtime declarado; npm ci, testes, lint e build passaram em cópia limpa. Limites de volume e hardware continuam exigindo ensaio específico |
+| 6 — TCC | Protocolo e avaliador ABSA offline preparados, com 20 exemplos sintéticos draft. Revisão humana, população, digest experimental e critérios de aceite continuam pendentes |
+| 7 — Ambiente/capacidade | Instalação limpa aprovada; ensaio em Chromium até 49.999 comentários executado. Comparação paginada em 100 opções e segmentador reutilizado. Ainda há bloqueios com grandes volumes; não homologados todos os formatos, 500.000 células ou outros aparelhos |
+
+Evidências da continuação: [capacidade e avaliação](CAPACITY-AND-EVALUATION-2026-10-23.md).
 
 Próxima prioridade funcional: avaliação semântica e capacidade com critérios acordados,
 seguindo [EXPERIMENT_PROTOCOL](EXPERIMENT_PROTOCOL.md). Nenhum teste técnico substitui
 a anotação e revisão do orientador. Acompanhar também a correção de `braces`.
+Para responsividade em grandes volumes, avaliar mover parsing/sanitização para
+um Web Worker do navegador, com cancelamento e isolamento RAW/SANITIZED testados;
+a paginação já resolve o crescimento do seletor, mas o processamento permanece síncrono.
 
 ## Histórico: versionamento e verificação antes da manutenção
 

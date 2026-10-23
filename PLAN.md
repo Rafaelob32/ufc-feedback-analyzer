@@ -13,6 +13,11 @@ Unicode no dicionário, verificação de `thinking.values` com sonda sintética 
 metadados ausentes, correção das mensagens de descarte e testes E2E do export.
 O contrato Zod e as funcionalidades anteriores foram preservados.
 
+Continuação em 23/10: comparação paginada com busca por ID, reutilização do
+segmentador Unicode e ensaios sintéticos de capacidade; avaliador ABSA offline
+com rascunho de 20 casos para revisão humana. Consulte
+[o relatório da continuação](docs/CAPACITY-AND-EVALUATION-2026-10-23.md).
+
 Consulte [NEXT_STEPS](docs/NEXT_STEPS.md) para o estado das recomendações,
 [a validação de manutenção](docs/MAINTENANCE-2026-10-23.md) para os testes atuais
 e [VALIDATION](docs/VALIDATION.md) para o registro histórico anterior.

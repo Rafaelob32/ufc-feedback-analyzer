@@ -9,6 +9,9 @@ contratos de privacidade e testes de navegador estão registrados em
 [MAINTENANCE-2026-10-23](../MAINTENANCE-2026-10-23.md). O relatório distingue achados
 resolvidos, mitigados e pendências, sem modificar as evidências históricas abaixo.
 
+**Continuação de 23/10:** [capacidade e preparação da avaliação ABSA](../CAPACITY-AND-EVALUATION-2026-10-23.md)
+registra as medições sintéticas, a paginação da comparação e o avaliador offline.
+
 **Parecer: aprovada com ressalvas para demonstração controlada da PoC com dados sintéticos.** Este parecer não aprova uso institucional com dados pessoais, decisões automatizadas sobre pessoas ou alegações de conformidade integral com a LGPD. Consulte os critérios do [parecer final](10-PARECER-TECNICO-FINAL.md).
 
 ## Índice e ordem de leitura

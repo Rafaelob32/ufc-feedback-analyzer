@@ -7,7 +7,9 @@
     "build": "next build --webpack",
     "lint": "eslint . --max-warnings=0",
     "test": "node --test --test-isolation=none tests/*.test.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:capacity": "playwright test --config=playwright.capacity.config.mjs",
+    "evaluate:absa": "node scripts/evaluate-absa.mjs"
   },
   "dependencies": {
     "next": "^16.4.2",

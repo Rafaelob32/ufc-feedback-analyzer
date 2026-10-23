@@ -21,3 +21,12 @@ desenvolvimento, testa a interface em Chromium desktop/mobile contra `out/`
 servido por HTTP estático na porta 4173. Esse servidor de arquivos é infraestrutura
 do teste, não backend da aplicação. A suíte intercepta a origem do Ollama e usa
 somente planilhas sintéticas. Testes reais do modelo são registrados separadamente.
+
+A comparação RAW/SANITIZED pagina as opções em grupos de 100 e permite localizar
+diretamente o ID original. Nenhuma paginação renumera IDs ou trunca coleções.
+O segmentador Unicode é reutilizado dentro de cada chamada de sanitização e criado
+somente se necessário; não existe cache de comentários entre chamadas.
+
+`scripts/evaluate-absa.mjs` é um utilitário offline de desenvolvimento que recebe
+arquivos explícitos e imprime métricas no terminal. Ele não integra o bundle,
+não é backend da aplicação e não adiciona persistência ao fluxo do navegador.

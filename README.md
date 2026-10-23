@@ -44,6 +44,8 @@ do Zod. Uma falha em qualquer lote descarta o resultado parcial.
 
 1. Selecione uma planilha .xls ou .xlsx.
 2. Confira os comentários importados e a comparação RAW/SANITIZED.
+   Com mais de 100 comentários, use a paginação ou **Ir para o ID original**;
+   todos permanecem acessíveis e seus IDs não são renumerados.
 3. Informe nomes conhecidos (um por linha) e ajuste o tamanho das matrículas.
 4. Escolha o modelo local e clique em **Analisar com IA**.
 5. Consulte o **Sumário rastreável** ou **Dashboard ABSA**. Clique em [ID]
@@ -125,6 +127,21 @@ suíte. As falhas podem gerar traces em `test-results/`, ignorados pelo Git. Nã
 planilhas institucionais nesses testes. No Fedora, o Playwright baixa um build de
 Chromium destinado ao Ubuntu; a execução verificada está documentada, mas isso não
 torna o Fedora uma plataforma oficialmente suportada pelo fornecedor.
+
+Ensaios opcionais de capacidade, após gerar `out/`:
+
+    npm run test:capacity
+    CAPACITY_MAX=50000 npm run test:capacity
+
+A primeira opção mede 100, 1.000 e 10.000 comentários; a segunda inclui 49.999
+mais o cabeçalho. Gera dados sintéticos na memória, não faz inferência e imprime
+tempos/contagens. Os números dependem do ambiente; não são limites universais de desempenho.
+E2E e capacidade usam a mesma porta 4173 e devem rodar sequencialmente.
+Veja o [ensaio registrado](docs/CAPACITY-AND-EVALUATION-2026-10-23.md).
+
+Para preparar a avaliação do TCC, há um [avaliador ABSA offline](docs/EVALUATION.md)
+e 20 exemplos sintéticos em estado draft. A pontuação exige uma referência com
+revisão humana registrada; não foi medida acurácia científica do modelo nesta etapa.
 
 ## Dependências
 
