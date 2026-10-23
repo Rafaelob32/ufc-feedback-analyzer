@@ -23,7 +23,7 @@ function browser(t, fetchImplementation) {
   t.after(() => { delete globalThis.window; });
   const generate = t.mock.fn(fetchImplementation);
   t.mock.method(globalThis, "fetch", (url, options) => {
-    if (url.endsWith("/api/show")) return Promise.resolve(Response.json({ capabilities: ["completion", "thinking"] }));
+    if (url.endsWith("/api/show")) return Promise.resolve(Response.json({ capabilities: ["completion", "thinking"], thinking: { values: [true, false] } }));
     return generate(url, options);
   });
   return generate;

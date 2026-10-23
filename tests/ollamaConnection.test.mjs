@@ -24,14 +24,14 @@ test("lista somente DeepSeek locais e descarta duplicatas ou aliases remotos", a
 });
 
 test("verifica capacidades e bloqueia modelos remotos antes de enviar comentários", async (t) => {
-  let body = { capabilities: ["completion", "thinking"] };
+  let body = { capabilities: ["completion", "thinking"], thinking: { values: [true, false] } };
   const fetchMock = browser(t, async (url, options) => {
     assert.equal(url, "http://localhost:11434/api/show");
     assert.deepEqual(JSON.parse(options.body), { model: "deepseek-r1:latest" });
     return Response.json(body);
   });
   await verifyLocalModel("deepseek-r1:latest");
-  for (body of [{}, { capabilities: ["completion"] }, { capabilities: ["thinking"] }, { capabilities: ["completion", "thinking"], remote_model: "cloud" }]) {
+  for (body of [{}, { capabilities: ["completion"], thinking: null }, { capabilities: ["thinking"] }, { capabilities: ["completion", "thinking"], remote_model: "cloud" }]) {
     await assert.rejects(verifyLocalModel("deepseek-r1:latest"), /precisa executar localmente/);
   }
   const count = fetchMock.mock.callCount();
@@ -65,4 +65,70 @@ test("consulta de modelos respeita cancelamento e timeout", async (t) => {
 
 test("consultas ao Ollama são bloqueadas fora do navegador", async () => {
   await assert.rejects(requestOllama("tags"), /navegador/);
+});
+
+test("recusa valores de thinking que não incluam false antes de enviar dados", async (t) => {
+  let values;
+  const fetchMock = browser(t, async () => Response.json({
+    capabilities: ["completion", "thinking"], thinking: { values },
+  }));
+  for (values of [["low", "high"], [true], ["false"], []]) {
+    await assert.rejects(verifyLocalModel("deepseek-r1:latest"), /think: false/);
+  }
+  assert.equal(fetchMock.mock.callCount(), 4);
+});
+
+test("aceita false explícito, inclusive modelo sem capacidade thinking", async (t) => {
+  const fetchMock = browser(t, async () => Response.json({
+    capabilities: ["completion"], thinking: { values: [false] },
+  }));
+  await verifyLocalModel("deepseek-r1:latest");
+  assert.equal(fetchMock.mock.callCount(), 1);
+});
+
+test("sem metadados usa sonda estruturada sem comentários antes da análise", async (t) => {
+  const fetchMock = browser(t, async (url, options) => {
+    if (url.endsWith("/show")) return Response.json({ capabilities: ["completion", "thinking"] });
+    assert.equal(url, "http://localhost:11434/api/generate");
+    const payload = JSON.parse(options.body);
+    assert.equal(payload.model, "deepseek-r1:latest");
+    assert.equal(payload.think, false);
+    assert.equal(payload.stream, false);
+    assert.equal(payload.options.temperature, 0);
+    assert.equal(payload.format.additionalProperties, false);
+    assert.equal(payload.prompt, 'Teste de compatibilidade sem dados pessoais. Retorne somente o JSON {"ok":true}, sem raciocínio.');
+    return Response.json({ done: true, response: '{"ok":true}', thinking: "" });
+  });
+  await verifyLocalModel("deepseek-r1:latest");
+  assert.equal(fetchMock.mock.callCount(), 2);
+});
+
+test("sonda rejeita raciocínio, saída incompleta e resposta inesperada sem expor texto", async (t) => {
+  let body;
+  browser(t, async (url) => url.endsWith("/show")
+    ? Response.json({ capabilities: ["completion"] }) : Response.json(body));
+  for (body of [
+    { done: true, response: '{"ok":true}', thinking: "SEGREDO" },
+    { done: true, response: '<think>SEGREDO</think>{"ok":true}' },
+    { done: true, response: '{"ok":true}', done_reason: "length" },
+    { done: false, response: '{"ok":true}' },
+    { done: true, response: '{"ok":false}' },
+    { done: true, response: '{"ok":true,"extra":"SEGREDO"}' },
+    { done: true, response: "SEGREDO" },
+  ]) {
+    await assert.rejects(verifyLocalModel("deepseek-r1:latest"), (error) =>
+      error.message.includes("Nenhum comentário foi enviado") && !error.message.includes("SEGREDO"));
+  }
+});
+
+test("cancelamento interrompe a sonda de compatibilidade", async (t) => {
+  const controller = new AbortController();
+  browser(t, async (url, { signal }) => {
+    if (url.endsWith("/show")) return Response.json({ capabilities: ["completion"] });
+    return new Promise((_, reject) => {
+      signal.addEventListener("abort", () => reject(new DOMException("cancelado", "AbortError")));
+      controller.abort();
+    });
+  });
+  await assert.rejects(verifyLocalModel("deepseek-r1:latest", controller.signal), { name: "AbortError" });
 });

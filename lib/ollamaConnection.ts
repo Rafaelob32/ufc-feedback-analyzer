@@ -65,9 +65,37 @@ export async function verifyLocalModel(model: string, signal?: AbortSignal): Pro
   const parsed = z.object({
     capabilities: z.array(z.string()),
     remote_host: z.string().optional(), remote_model: z.string().optional(),
+    thinking: z.object({ values: z.array(z.union([z.boolean(), z.string()])) }).optional(),
   }).safeParse(await requestOllama("show", signal, { model }));
   if (!parsed.success || parsed.data.remote_host || parsed.data.remote_model ||
-      !parsed.data.capabilities.includes("completion") || !parsed.data.capabilities.includes("thinking")) {
-    throw new OllamaError("O modelo precisa executar localmente e suportar geração e controle de thinking. Confira a instalação do DeepSeek-R1.");
+      !parsed.data.capabilities.includes("completion")) {
+    throw new OllamaError("O modelo precisa executar localmente e informar capacidades válidas de geração e thinking. Confira a instalação do DeepSeek-R1.");
+  }
+  if (parsed.data.thinking) {
+    if (!parsed.data.thinking.values.includes(false)) {
+      throw new OllamaError("O modelo não declara suporte a think: false. Selecione uma variante local compatível.");
+    }
+    return;
+  }
+  // Versões sem metadados explícitos precisam passar por uma sonda sintética.
+  // Nenhum comentário, nome configurado ou ID do usuário entra nesta requisição.
+  const probe = z.object({
+    done: z.literal(true), response: z.string(), thinking: z.string().optional(),
+    done_reason: z.string().optional(),
+  }).safeParse(await requestOllama("generate", signal, {
+    model, stream: false, think: false,
+    options: { temperature: 0.0, num_ctx: 2048, num_predict: 64 },
+    format: { type: "object", properties: { ok: { type: "boolean", const: true } }, required: ["ok"], additionalProperties: false },
+    prompt: 'Teste de compatibilidade sem dados pessoais. Retorne somente o JSON {"ok":true}, sem raciocínio.',
+  }));
+  let compatible = false;
+  if (probe.success && !probe.data.thinking?.trim() && probe.data.done_reason !== "length" &&
+      !/<\/?think\b/i.test(probe.data.response)) {
+    try {
+      compatible = z.object({ ok: z.literal(true) }).strict().safeParse(JSON.parse(probe.data.response)).success;
+    } catch { /* A falha expõe apenas uma mensagem controlada, nunca a resposta. */ }
+  }
+  if (!compatible) {
+    throw new OllamaError("Não foi possível confirmar think: false no teste sintético. Nenhum comentário foi enviado. Verifique o modelo e a versão do Ollama.");
   }
 }
