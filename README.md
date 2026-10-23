@@ -3,6 +3,13 @@
 Aplicação estática para analisar avaliações institucionais no navegador:
 importação Excel → RAW imutável → SANITIZED → Ollama local → sumário rastreável e ABSA.
 
+## Auditoria e próximos passos
+
+- [Auditoria técnica de 20/10/2026](docs/auditoria/README.md): arquitetura, requisitos, evidências e limitações observadas naquela data.
+- [Plano de próximos passos e verificação de 23/10/2026](docs/NEXT_STEPS.md): prioridades, critérios de aceite e registro do versionamento inicial.
+
+**Pendência atual de segurança:** na verificação de 23/10/2026, o npm audit apontou uma entrada crítica em Next.js 16.4.0, e o build terminou com alerta de segurança após gerar as páginas estáticas. A atualização compatível é a primeira prioridade do plano. Nenhuma atualização foi aplicada neste registro; os resultados anteriores abaixo permanecem históricos.
+
 ## Executar
 
 Requer Node.js 24 e npm. Na pasta deste arquivo:
