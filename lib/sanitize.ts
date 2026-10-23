@@ -14,6 +14,37 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Compara em NFC; copia os trechos não mascarados da string original. */
+function maskCanonicalMatches(text: string, pattern: RegExp): string {
+  const normalized = text.normalize("NFC");
+  if (normalized === text) return text.replace(pattern, SENSITIVE_MARKER);
+  const matches = [...normalized.matchAll(pattern)];
+  if (!matches.length) return text;
+
+  // Grafemas mantêm acentos combinantes e pares substitutos juntos. Um match
+  // parcial de grafema mascara o grafema inteiro, sem produzir Unicode quebrado.
+  let normalizedOffset = 0;
+  const segments = [...new Intl.Segmenter("pt", { granularity: "grapheme" }).segment(text)]
+    .map(({ segment, index }) => {
+      const start = normalizedOffset;
+      normalizedOffset += segment.normalize("NFC").length;
+      return { start, end: normalizedOffset, originalStart: index, originalEnd: index + segment.length };
+    });
+  let segmentIndex = 0;
+  let cursor = 0;
+  let result = "";
+  for (const match of matches) {
+    while (segments[segmentIndex].end <= match.index) segmentIndex += 1;
+    const start = segments[segmentIndex].originalStart;
+    while (segments[segmentIndex].end < match.index + match[0].length) segmentIndex += 1;
+    const end = segments[segmentIndex].originalEnd;
+    if (end <= cursor) continue;
+    result += text.slice(cursor, Math.max(cursor, start)) + SENSITIVE_MARKER;
+    cursor = end;
+  }
+  return result + text.slice(cursor);
+}
+
 /**
  * Função pura: não altera RAW, nomes nem opções, e não acessa navegador, disco ou rede.
  * Reconhece padrões configurados, não todos os possíveis dados pessoais de um texto.
@@ -37,7 +68,7 @@ export function sanitizeComments(
   ];
 
   const names = [...new Set(knownNames
-    .map((name) => name.trim().replace(/\s+/gu, " "))
+    .map((name) => name.normalize("NFC").trim().replace(/\s+/gu, " "))
     .filter(Boolean))]
     // O nome completo tem prioridade sobre um nome curto sobreposto.
     .sort((a, b) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0));
@@ -53,6 +84,6 @@ export function sanitizeComments(
   return Object.freeze(raw.map((comment) => Object.freeze({
     id: comment.id,
     // Uma única passagem evita que uma substituição altere a marca de outra.
-    text: comment.text.replace(sensitivePattern, SENSITIVE_MARKER),
+    text: maskCanonicalMatches(comment.text, sensitivePattern),
   })));
 }

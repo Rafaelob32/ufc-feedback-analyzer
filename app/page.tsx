@@ -272,7 +272,7 @@ export default function Home() {
             </svg>
             <div>
               <h2 id="privacidade-titulo" className="text-sm font-semibold text-[#2c4a6c]">Privacidade desde o primeiro passo</h2>
-              <p className="mt-1 text-xs leading-5 text-[#4e6680] sm:text-sm">O arquivo e os comentários RAW ficam apenas na memória do navegador. Somente a versão SANITIZED é enviada ao Ollama local ao clicar em analisar. Remover o arquivo, recarregar ou fechar a página descarta os dados mantidos nesta página.</p>
+              <p className="mt-1 text-xs leading-5 text-[#4e6680] sm:text-sm">O arquivo e os comentários RAW ficam apenas na memória do navegador. Somente a versão SANITIZED é enviada ao Ollama local ao clicar em analisar. Remover o arquivo descarta os comentários e resultados; o dicionário de nomes e as configurações permanecem até recarregar ou fechar a página.</p>
             </div>
           </section>
         </main>

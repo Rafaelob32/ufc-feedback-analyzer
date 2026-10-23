@@ -45,6 +45,33 @@ test("reconhece nomes sem diferenciar maiúsculas e respeita limites Unicode", (
   );
 });
 
+test("mascara nomes canonicamente equivalentes em NFC e NFD nos dois sentidos", () => {
+  for (const name of ["José Silva", "José Silva".normalize("NFD")]) {
+    for (const text of ["JOSÉ Silva", "JOSÉ Silva".normalize("NFD")]) {
+      assert.equal(mask(`Olá, ${text}! Nota 10.`, [name]), `Olá, ${marker}! Nota 10.`);
+    }
+  }
+  assert.equal(mask("Jose e José, Josefina.", ["José"]), `Jose e ${marker}, Josefina.`);
+});
+
+test("normalização para comparação preserva trechos não mascarados, RAW e offsets Unicode", () => {
+  const prefix = "👩🏽‍💻 Cafe\u0301: ";
+  const suffix = " — opinia\u0303o 10!";
+  const text = prefix + "Jose\u0301" + suffix;
+  const input = Object.freeze([Object.freeze(raw(text, 6))]);
+  assert.deepEqual(sanitizeComments(input, ["José"]), [{ id: 6, text: prefix + marker + suffix }]);
+  assert.equal(input[0].text, text);
+  assert.equal(mask(prefix + suffix, ["José"]), prefix + suffix);
+  assert.equal(mask("A\u0301\u0323 e Á\u0323", ["A\u0323\u0301"]), `${marker} e ${marker}`);
+});
+
+test("mantém limites e idempotência ao mascarar nomes decompostos", () => {
+  const input = "Jose\u0301 e Jose\u0301zinho; " + marker;
+  const expected = `${marker} e Jose\u0301zinho; ${marker}`;
+  assert.equal(mask(input, ["José", "Sensível"]), expected);
+  assert.equal(mask(expected, ["Jose\u0301", "Sensível"]), expected);
+});
+
 test("prioriza nomes completos e tolera espaços entre seus termos", () => {
   const text = "Ana Silva; ANA   SILVA; Ana\nSilva; Ana.";
   const expected = `${marker}; ${marker}; ${marker}; ${marker}.`;
