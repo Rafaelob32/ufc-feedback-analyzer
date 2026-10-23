@@ -4,6 +4,11 @@ Data: **20/10/2026**, America/Fortaleza. Escopo: aplicação local existente, se
 
 **Atualização posterior, 23/10/2026:** o versionamento Git foi iniciado a pedido do responsável, preservando o código auditado em uma baseline. Uma nova consulta de dependências encontrou aviso crítico em Next.js e o build terminou com alerta de segurança. Consulte o [plano e a verificação atualizados](../NEXT_STEPS.md). Os resultados, contagens de achados e a ausência de Git descritos nos documentos abaixo correspondem à auditoria de 20/10; não foram reescritos retroativamente.
 
+**Resolução posterior na mesma data:** atualização do Next.js, correções Unicode/thinking,
+contratos de privacidade e testes de navegador estão registrados em
+[MAINTENANCE-2026-10-23](../MAINTENANCE-2026-10-23.md). O relatório distingue achados
+resolvidos, mitigados e pendências, sem modificar as evidências históricas abaixo.
+
 **Parecer: aprovada com ressalvas para demonstração controlada da PoC com dados sintéticos.** Este parecer não aprova uso institucional com dados pessoais, decisões automatizadas sobre pessoas ou alegações de conformidade integral com a LGPD. Consulte os critérios do [parecer final](10-PARECER-TECNICO-FINAL.md).
 
 ## Índice e ordem de leitura

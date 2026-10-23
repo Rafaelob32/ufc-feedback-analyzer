@@ -2,9 +2,28 @@
 
 Plano registrado em **23/10/2026**, a pedido do responsável pelo projeto, com base na [auditoria de 20/10/2026](auditoria/README.md).
 
-Este documento organiza recomendações e critérios de aceite. **As correções abaixo ainda não foram implementadas.** O registro no Git preserva o estado atual para permitir revisão e comparação das alterações futuras.
+Este documento organiza recomendações e critérios de aceite. O registro inicial
+abaixo é histórico. As correções implementadas nesta data e suas evidências estão
+em [MAINTENANCE-2026-10-23](MAINTENANCE-2026-10-23.md).
 
-## Versionamento e verificação de 23/10/2026
+## Estado após a manutenção de 23/10/2026
+
+| Item | Estado |
+| --- | --- |
+| 0 — Next.js | Corrigido: Next.js/config 16.4.2, build estático aprovado e audit de produção sem avisos conhecidos |
+| 1 — Unicode | Corrigido com regressões NFC/NFD, preservando RAW, IDs e trechos não mascarados |
+| 2 — thinking | Verificação explícita de valores e sonda sintética para metadados ausentes; sonda real passou no modelo instalado |
+| 3 — Privacidade/descarte | UI e contratos alinhados: remover preserva configurações; IDs/Zod não provam acurácia ou conformidade jurídica |
+| 4 — Lint | Reavaliado; cinco entradas altas da mesma cadeia permanecem. ESLint 9 sem suporte; tentativa com 10 revelou plugins incompatíveis e foi revertida |
+| 5 — E2E | Suíte Playwright criada para export estático, fluxo, cancelamento, alterações, rejeição de IDs e descarte; resultados no relatório de manutenção |
+| 6 — TCC | Metadados locais registrados e protocolo preparado; anotação humana, população e critérios de aceite ainda pendentes |
+| 7 — Ambiente/capacidade | Runtime declarado; npm ci, testes, lint e build passaram em cópia limpa. Limites de volume e hardware continuam exigindo ensaio específico |
+
+Próxima prioridade funcional: avaliação semântica e capacidade com critérios acordados,
+seguindo [EXPERIMENT_PROTOCOL](EXPERIMENT_PROTOCOL.md). Nenhum teste técnico substitui
+a anotação e revisão do orientador. Acompanhar também a correção de `braces`.
+
+## Histórico: versionamento e verificação antes da manutenção
 
 O repositório foi iniciado na pasta da aplicação, na branch `main`, mediante solicitação de commit. A baseline `6d37b09c9c38db6ef57e650e6635e2d5a593a27e` registra exatamente os 38 arquivos do snapshot auditado, sem alterações funcionais. A documentação da auditoria e este plano são registrados separadamente. Isso inicia a rastreabilidade daqui em diante; não recupera histórico anterior (`AUD-09`).
 
@@ -40,14 +59,14 @@ Os três avisos indicam correção na linha 16 a partir de 16.4.1. A versão com
 | 6 | Preparar avaliação reproduzível para o TCC | AUD-04, AUD-05 | Modelo/digest, versão do Ollama e parâmetros registrados; conjunto sintético anotado manualmente; critérios de qualidade definidos antes de medir; resultados incluem erros e limitações |
 | 7 | Validar capacidade e ambiente de execução | AUD-06, AUD-08 | Instalação limpa verificada em cópia autorizada; runtime documentado; carga medida no hardware alvo; limites de leitura, nomes e renderização justificados por resultados |
 
-O alerta novo torna a manutenção de segurança do item 0 prioritária. A primeira correção funcional recomendada continua sendo o item 1, acompanhada de regressões que reproduzam a falha antes de corrigi-la.
+Esta tabela preserva a ordem original da auditoria; consulte o estado atualizado acima.
 
 ## Decisões a alinhar antes das alterações correspondentes
 
-- **Modelo experimental:** definir o modelo e digest fixos e o procedimento para versões sem metadados explícitos de thinking.
+- **Modelo experimental:** escolher e congelar o digest para o experimento. O comportamento para ausência de metadados foi implementado e está em AI_CONTRACT; o digest observado está no relatório de manutenção.
 - **População analisada:** confirmar se docentes e discentes devem permanecer no mesmo conjunto e se haverá necessidade de separar disciplinas.
 - **Qualidade:** definir como avaliar sínteses e ABSA, incluindo erros aceitáveis, revisão humana e resultados vazios. O contrato Zod atual permite listas externas vazias.
-- **Descarte:** decidir se remover planilha preserva configurações ou também limpa o dicionário; mensagem e comportamento devem coincidir.
+- **Descarte:** mantido o comportamento existente, agora documentado: remover preserva configurações; recarregar/fechar descarta tudo do estado da página.
 - **Ambiente:** definir navegadores, volume de dados e hardware suportados. Não assumir que limites numéricos atuais foram comprovados por teste de carga.
 
 ## Restrições que continuam valendo
@@ -68,6 +87,7 @@ npm test
 npm run lint
 ./node_modules/.bin/tsc --noEmit --incremental false
 npm run build
+npm run test:e2e
 npm audit
 npm audit --omit=dev
 ```

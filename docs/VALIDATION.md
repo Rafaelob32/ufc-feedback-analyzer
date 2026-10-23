@@ -1,5 +1,8 @@
 # Revisão e validação — 19 e 20/10/2026
 
+Registro histórico. Para as correções e verificações posteriores, consulte
+[a manutenção de 23/10/2026](MAINTENANCE-2026-10-23.md).
+
 ## Resultado
 
 As funcionalidades previstas no PLAN.md foram implementadas, mantendo exportação

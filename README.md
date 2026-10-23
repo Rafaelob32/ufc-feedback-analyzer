@@ -8,11 +8,14 @@ importação Excel → RAW imutável → SANITIZED → Ollama local → sumário
 - [Auditoria técnica de 20/10/2026](docs/auditoria/README.md): arquitetura, requisitos, evidências e limitações observadas naquela data.
 - [Plano de próximos passos e verificação de 23/10/2026](docs/NEXT_STEPS.md): prioridades, critérios de aceite e registro do versionamento inicial.
 
-**Pendência atual de segurança:** na verificação de 23/10/2026, o npm audit apontou uma entrada crítica em Next.js 16.4.0, e o build terminou com alerta de segurança após gerar as páginas estáticas. A atualização compatível é a primeira prioridade do plano. Nenhuma atualização foi aplicada neste registro; os resultados anteriores abaixo permanecem históricos.
+**Manutenção de 23/10/2026:** Next.js e eslint-config-next atualizados para 16.4.2; build estático aprovado e audit de produção sem avisos conhecidos. Persistem cinco entradas altas na cadeia de lint. Veja as evidências, limitações e correções em [MAINTENANCE-2026-10-23](docs/MAINTENANCE-2026-10-23.md).
 
 ## Executar
 
-Requer Node.js 24 e npm. Na pasta deste arquivo:
+Ambiente testado: Node.js 24.14.0 (também em `.nvmrc`), npm 11.9.0 e Python 3
+para servir o export nos testes. `package.json` declara as linhas Node 24/npm 11.
+Essas versões registram o ambiente verificado, não uma promessa de serem as mais recentes.
+Na pasta deste arquivo:
 
     npm ci
     npm run dev -- --hostname 127.0.0.1 --port 3000
@@ -31,8 +34,10 @@ Se o Ollama já roda como serviço, configure OLLAMA_ORIGINS no ambiente desse s
 não abra outra instância na mesma porta. Não é necessário expor a porta 11434 à rede.
 
 O menu consulta /api/tags e lista variantes locais do DeepSeek-R1. Antes da
-inferência, /api/show verifica as capacidades do modelo e rejeita aliases
-remotos. O payload usa think: false, temperatura zero e JSON Schema gerado
+inferência, /api/show verifica capacidades e `thinking.values` e rejeita aliases
+remotos. Se os metadados de thinking estiverem ausentes, uma sonda JSON sintética
+sem comentários testa o comportamento observado; falha nessa etapa bloqueia a análise.
+O payload usa think: false, temperatura zero e JSON Schema gerado
 do Zod. Uma falha em qualquer lote descarta o resultado parcial.
 
 ## Usar
@@ -66,6 +71,8 @@ ausência de classificação com sentimento neutro.
 - Regex e dicionário reconhecem os padrões configurados; **não garantem remoção
   de todo dado pessoal nem conformidade jurídica automática**. Revise antes de
   analisar. Nomes desconhecidos e formatos diferentes podem permanecer.
+  Nomes equivalentes em Unicode NFC/NFD são reconhecidos sem alterar o RAW ou
+  normalizar os trechos não mascarados; isso não equivale a remover acentos.
 - A aplicação não persiste comentários. O serviço Ollama e o navegador são
   processos externos: configuração de logs, extensões e coleta diagnóstica desses
   ambientes devem ser avaliadas separadamente.
@@ -103,7 +110,21 @@ verificada em HTTP local; uma hospedagem HTTPS pode sofrer restrições de acess
 
 Os testes usam planilhas sintéticas e respostas simuladas para falhas, cancelamento,
 privacidade, contratos, filtros e limites. Integrações reais e revisão visual devem
-ser registradas separadamente em [docs/VALIDATION.md](docs/VALIDATION.md).
+ser registradas separadamente em relatórios datados. [VALIDATION](docs/VALIDATION.md)
+preserva os resultados anteriores à manutenção atual.
+
+Para testar a interface desktop/mobile contra o export recém-gerado:
+
+    npx playwright install chromium
+    npm run build
+    npm run test:e2e
+
+Playwright inicia um servidor de arquivos na porta 4173, intercepta as chamadas ao
+Ollama e usa somente a fixture sintética. Não é necessário um modelo real para esta
+suíte. As falhas podem gerar traces em `test-results/`, ignorados pelo Git. Não use
+planilhas institucionais nesses testes. No Fedora, o Playwright baixa um build de
+Chromium destinado ao Ubuntu; a execução verificada está documentada, mas isso não
+torna o Fedora uma plataforma oficialmente suportada pelo fornecedor.
 
 ## Dependências
 
@@ -111,10 +132,19 @@ Nenhuma biblioteca adicional foi necessária para o dashboard: React, CSS e
 JavaScript nativo implementam gráfico, filtros e diálogo. O schema Zod permanece
 exatamente como definido em docs/AI_CONTRACT.md.
 
-Na revisão de 19/10/2026, o audit sem dependências de desenvolvimento não apontou
-vulnerabilidades. O audit completo apontou cinco entradas de severidade alta na cadeia
+Playwright foi adicionado somente ao desenvolvimento para exercitar o fluxo real
+dos componentes, cancelamento, descarte, rastreabilidade e layouts desktop/mobile.
+Não entra no bundle de produção.
+
+Na verificação após atualização de 23/10/2026, o audit de produção não apontou
+vulnerabilidades conhecidas. O audit completo continua apontando cinco entradas altas na cadeia
 eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces.
 A [advisoria GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 não informa versão corrigida de braces. Não foi aplicado npm audit fix --force,
 pois a sugestão regride o eslint-config-next para a versão 14. A pendência continua
 aberta e deve ser reavaliada quando houver correção compatível.
+
+O ESLint 9.39.5 também está fora de suporte. A tentativa com ESLint 10.13.0 passou
+no lint, mas os plugins transitivos import/jsx-a11y/react ainda declaram apenas
+até ESLint 9; a migração foi revertida para preservar uma instalação compatível.
+A atualização coordenada dessa cadeia continua pendente.
