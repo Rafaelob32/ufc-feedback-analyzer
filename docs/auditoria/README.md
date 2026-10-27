@@ -12,6 +12,10 @@ resolvidos, mitigados e pendências, sem modificar as evidências históricas ab
 **Continuação de 23/10:** [capacidade e preparação da avaliação ABSA](../CAPACITY-AND-EVALUATION-2026-10-23.md)
 registra as medições sintéticas, a paginação da comparação e o avaliador offline.
 
+**Continuação de 26/10:** [processamento em Worker e retestes](../WORKER-VALIDATION-2026-10-26.md)
+registra a mitigação dos bloqueios de processamento, os testes de cancelamento e
+a preservação da exportação estática. Não altera o parecer histórico abaixo.
+
 **Parecer: aprovada com ressalvas para demonstração controlada da PoC com dados sintéticos.** Este parecer não aprova uso institucional com dados pessoais, decisões automatizadas sobre pessoas ou alegações de conformidade integral com a LGPD. Consulte os critérios do [parecer final](10-PARECER-TECNICO-FINAL.md).
 
 ## Índice e ordem de leitura

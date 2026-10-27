@@ -38,6 +38,143 @@ async function upload(page) {
   await page.getByLabel("Nomes conhecidos", { exact: true }).fill("Ana Silva");
 }
 
+// Controla somente a entrega de mensagens; parsing e sanitização continuam
+// executando nos Workers reais do export. Não há hooks de teste na aplicação.
+async function controlWorkers(page) {
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+    const control = window.processingControl = {
+      jobs: [], paused: [], failSanitize: false,
+      release(kind) {
+        this.paused = this.paused.filter((value) => value !== kind);
+        this.jobs.filter((job) => job.kind === kind).forEach((job) => job.deliver?.());
+      },
+    };
+    window.Worker = class {
+      constructor(url, options) {
+        this.native = new NativeWorker(url, options);
+        this.terminated = false;
+        control.jobs.push(this);
+        this.native.onmessage = (event) => {
+          this.deliver = () => { this.onmessage?.(event); this.deliver = null; };
+          if (!control.paused.includes(this.kind)) this.deliver();
+        };
+        this.native.onerror = (event) => this.onerror?.(event);
+        this.native.onmessageerror = (event) => this.onmessageerror?.(event);
+      }
+      postMessage(data) {
+        this.kind = data.kind;
+        if (data.kind === "sanitize" && control.failSanitize) throw new Error("falha sintética");
+        this.native.postMessage(data);
+      }
+      terminate() { this.terminated = true; this.native.terminate(); }
+    };
+  });
+}
+
+test("Worker de leitura mantém a tela utilizável e aplica a configuração mais recente", async ({ page }) => {
+  await controlWorkers(page);
+  const { requests, errors } = await setup(page);
+  await page.evaluate(() => { window.processingControl.paused = ["parse"]; });
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.waitForFunction(() => window.processingControl.jobs.some((job) => job.deliver));
+  await expect(page.getByText("Lendo planilha no navegador…", { exact: true })).toBeVisible();
+  await page.getByLabel("Nomes conhecidos", { exact: true }).fill("Ana Silva");
+  await expect(page.getByLabel("Nomes conhecidos", { exact: true })).toHaveValue("Ana Silva");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+  await page.evaluate(() => window.processingControl.release("parse"));
+  const sanitized = page.getByRole("article", { name: "SANITIZED · MASCARADO" });
+  await expect(sanitized).toBeVisible();
+  await expect(sanitized).not.toContainText("Ana Silva");
+  await expect(page.getByRole("article", { name: "RAW · ORIGINAL" })).toContainText("Ana Silva");
+  expect(await page.evaluate(() => window.processingControl.jobs.every((job) => job.terminated))).toBe(true);
+  expect(requests).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
+test("higienização pendente bloqueia análise e uma edição encerra o Worker anterior", async ({ page }) => {
+  await controlWorkers(page);
+  const { requests, errors } = await setup(page);
+  await upload(page);
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeEnabled();
+  await page.evaluate(() => { window.processingControl.paused = ["sanitize"]; });
+  await page.getByLabel("Nomes conhecidos", { exact: true }).fill("Ana Silva\nOutro Nome");
+  await page.waitForFunction(() => window.processingControl.jobs.at(-1)?.deliver);
+  await expect(page.getByText("Higienizando comentários no navegador… Aguarde antes de analisar.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+  await expect(page.getByRole("article", { name: "SANITIZED · MASCARADO" })).toHaveCount(0);
+  await page.getByLabel("Nomes conhecidos", { exact: true }).fill("Nome Ausente");
+  await page.waitForFunction(() => window.processingControl.jobs.at(-1)?.deliver);
+  expect(await page.evaluate(() => window.processingControl.jobs.slice(0, -1).every((job) => job.terminated))).toBe(true);
+  await page.evaluate(() => window.processingControl.release("sanitize"));
+  await expect(page.getByRole("article", { name: "SANITIZED · MASCARADO" })).toContainText("Ana Silva");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeEnabled();
+  expect(requests).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
+for (const kind of ["parse", "sanitize"]) {
+  test(`remover planilha encerra Worker de ${kind} sem restaurar dados`, async ({ page }) => {
+    await controlWorkers(page);
+    await setup(page);
+    await page.evaluate((value) => { window.processingControl.paused = [value]; }, kind);
+    await page.locator('input[type="file"]').setInputFiles(fixture);
+    await page.waitForFunction((value) => window.processingControl.jobs.some((job) => job.kind === value && job.deliver), kind);
+    await page.getByRole("button", { name: /^Remover / }).click();
+    expect(await page.evaluate(() => window.processingControl.jobs.every((job) => job.terminated))).toBe(true);
+    await page.evaluate((value) => window.processingControl.release(value), kind);
+    await expect(page.getByText("3 comentários identificados e carregados em memória.", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("article")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+    await upload(page);
+    await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeEnabled();
+  });
+}
+
+test("falha de higienização não libera dados antigos e permite repetir", async ({ page }) => {
+  await controlWorkers(page);
+  const { requests } = await setup(page);
+  await upload(page);
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeEnabled();
+  await page.evaluate(() => { window.processingControl.failSanitize = true; });
+  await page.getByLabel("Nomes conhecidos", { exact: true }).fill("Ana Silva\nOutro Nome");
+  await expect(page.getByRole("region", { name: "Higienização dos comentários" }).getByRole("alert")).toContainText("Não foi possível iniciar");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await page.evaluate(() => { window.processingControl.failSanitize = false; });
+  await page.getByRole("button", { name: "Tentar higienizar novamente" }).click();
+  await expect(page.getByRole("article", { name: "RAW · ORIGINAL" })).toContainText("Ana Silva");
+  await expect(page.getByRole("article", { name: "SANITIZED · MASCARADO" })).not.toContainText("Ana Silva");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeEnabled();
+  expect(requests).toHaveLength(0);
+});
+
+test("navegador sem Worker informa o problema sem fallback síncrono", async ({ page }) => {
+  await page.addInitScript(() => { window.Worker = undefined; });
+  const { requests } = await setup(page);
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("suporte a Web Workers");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+  await expect(page.getByRole("article")).toHaveCount(0);
+  expect(requests).toHaveLength(0);
+});
+
+test("erro de leitura é controlado e nova importação XLS binária recupera o fluxo", async ({ page }) => {
+  const { requests, errors } = await setup(page);
+  await page.locator('input[type="file"]').setInputFiles({ name: "corrompido.xlsx", mimeType: "application/octet-stream", buffer: Buffer.from([80, 75, 3, 4]) });
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Não foi possível ler a planilha");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeDisabled();
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["Comentário"], ["Nota 10; teste@example.test; matrícula 123456"]]), "Sintética");
+  await page.locator('input[type="file"]').setInputFiles({ name: "sintetica.xls", mimeType: "application/vnd.ms-excel", buffer: XLSX.write(workbook, { type: "buffer", bookType: "xls" }) });
+  await expect(page.getByText("1 comentário identificado e carregado em memória.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("article", { name: "SANITIZED · MASCARADO" })).toContainText("Nota 10; [DADO SENSÍVEL]; matrícula [DADO SENSÍVEL]");
+  await expect(page.getByRole("article", { name: "RAW · ORIGINAL" })).toContainText("teste@example.test");
+  await expect(page.getByRole("button", { name: "Analisar com IA", exact: true })).toBeEnabled();
+  expect(requests).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
 test("export estático: upload, máscara, payload, resultados, filtros e evidência RAW", async ({ page }) => {
   const { requests, errors } = await setup(page);
   await upload(page);

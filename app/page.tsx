@@ -5,17 +5,12 @@ import UploadArea from "@/components/UploadArea";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import ResultsPanel from "@/components/ResultsPanel";
 import { listLocalModels } from "@/lib/ollamaConnection";
-import SanitizationPanel, { registrationRules, type SanitizationSettings } from "@/components/SanitizationPanel";
-import { sanitizeComments } from "@/lib/sanitize";
+import SanitizationPanel from "@/components/SanitizationPanel";
+import type { SanitizationSettings } from "@/lib/sanitizationSettings";
+import { parseComments, sanitizeInWorker, ProcessingError } from "@/lib/commentProcessing";
 import { analyzeComments, OLLAMA_MODEL, OllamaError } from "@/lib/ollama";
 import type { AnalysisResult } from "@/lib/schema";
 import type { RawComment, SanitizedComment } from "@/types";
-
-function sanitizeWithSettings(raw: readonly RawComment[], settings: SanitizationSettings) {
-  return sanitizeComments(raw, settings.namesText.split(/\r?\n/u), {
-    registrationDigits: registrationRules[settings.registrationRule],
-  });
-}
 
 export default function Home() {
   const [rawComments, setRawComments] = useState<readonly RawComment[]>([]);
@@ -24,7 +19,10 @@ export default function Home() {
   const settingsRef = useRef(sanitizationSettings);
   const [readStatus, setReadStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [readError, setReadError] = useState("");
-  const importVersion = useRef(0);
+  const importRequest = useRef<AbortController | null>(null);
+  const sanitizationRequest = useRef<AbortController | null>(null);
+  const [isSanitizing, setIsSanitizing] = useState(false);
+  const [sanitizationError, setSanitizationError] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
@@ -56,7 +54,10 @@ export default function Home() {
   useEffect(() => () => {
     analysisRequest.current?.abort();
     analysisRequest.current = null;
-    importVersion.current += 1;
+    importRequest.current?.abort();
+    importRequest.current = null;
+    sanitizationRequest.current?.abort();
+    sanitizationRequest.current = null;
   }, []);
 
   function invalidateAnalysis() {
@@ -81,7 +82,7 @@ export default function Home() {
   }
 
   async function handleAnalyze() {
-    if (analysisRequest.current || sanitizedComments.length === 0 || readStatus !== "success" || modelsLoading || !models.includes(model)) return;
+    if (analysisRequest.current || sanitizationRequest.current || sanitizedComments.length === 0 || readStatus !== "success" || modelsLoading || !models.includes(model)) return;
     const request = new AbortController();
     analysisRequest.current = request;
     setAnalysisResult(null);
@@ -109,18 +110,47 @@ export default function Home() {
     }
   }
 
+  async function startSanitization(raw: readonly RawComment[], settings: SanitizationSettings) {
+    sanitizationRequest.current?.abort();
+    sanitizationRequest.current = null;
+    setSanitizedComments([]);
+    setSanitizationError("");
+    setIsSanitizing(raw.length > 0);
+    if (raw.length === 0) return;
+    const request = new AbortController();
+    sanitizationRequest.current = request;
+    try {
+      const comments = await sanitizeInWorker(raw, settings, request.signal);
+      if (sanitizationRequest.current !== request) return;
+      setSanitizedComments(comments);
+    } catch (error) {
+      if (sanitizationRequest.current !== request) return;
+      setSanitizationError(error instanceof ProcessingError ? error.message : "Não foi possível higienizar os comentários. Tente novamente.");
+    } finally {
+      if (sanitizationRequest.current === request) {
+        sanitizationRequest.current = null;
+        setIsSanitizing(false);
+      }
+    }
+  }
+
   function handleSettingsChange(settings: SanitizationSettings) {
     invalidateAnalysis();
     // Uma leitura pendente usará a configuração mais recente ao terminar.
     settingsRef.current = settings;
     setSanitizationSettings(settings);
     // Somente a coleção SANITIZED é substituída; RAW permanece intacto.
-    setSanitizedComments(sanitizeWithSettings(rawComments, settings));
+    void startSanitization(rawComments, settings);
   }
 
   async function handleFileSelect(file: File | null) {
     invalidateAnalysis();
-    const currentVersion = ++importVersion.current;
+    importRequest.current?.abort();
+    importRequest.current = null;
+    sanitizationRequest.current?.abort();
+    sanitizationRequest.current = null;
+    setIsSanitizing(false);
+    setSanitizationError("");
     setRawComments([]);
     setSanitizedComments([]);
     setReadError("");
@@ -130,20 +160,21 @@ export default function Home() {
     }
 
     setReadStatus("loading");
+    const request = new AbortController();
+    importRequest.current = request;
     try {
-      // O serviço e o SheetJS só são carregados após a seleção no cliente.
-      const { parseXlsxFile } = await import("@/lib/xlsxParser");
-      const comments = await parseXlsxFile(file);
+      const comments = await parseComments(file, request.signal);
       // Trocar ou remover um arquivo invalida qualquer leitura anterior.
-      if (currentVersion !== importVersion.current) return;
-      const sanitized = sanitizeWithSettings(comments, settingsRef.current);
+      if (importRequest.current !== request) return;
       setRawComments(comments);
-      setSanitizedComments(sanitized);
       setReadStatus("success");
+      void startSanitization(comments, settingsRef.current);
     } catch (error) {
-      if (currentVersion !== importVersion.current) return;
-      setReadError(error instanceof Error ? error.message : "Não foi possível ler a planilha. Tente novamente.");
+      if (importRequest.current !== request) return;
+      setReadError(error instanceof ProcessingError ? error.message : "Não foi possível ler a planilha. Tente novamente.");
       setReadStatus("error");
+    } finally {
+      if (importRequest.current === request) importRequest.current = null;
     }
   }
 
@@ -245,6 +276,9 @@ export default function Home() {
             sanitizedComments={sanitizedComments}
             settings={sanitizationSettings}
             onSettingsChange={handleSettingsChange}
+            isProcessing={isSanitizing}
+            error={sanitizationError}
+            onRetry={() => { void startSanitization(rawComments, settingsRef.current); }}
           />
 
           <AnalysisPanel

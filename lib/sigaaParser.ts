@@ -1,3 +1,4 @@
+import { SpreadsheetError } from "./spreadsheetError.ts";
 import { utils, type WorkSheet } from "xlsx";
 import type { RawComment } from "../types/index";
 
@@ -47,7 +48,7 @@ export function extractSigaaComments(
       (typeof value === "string" && value.trim().length === 0);
     if (!cell?.f && empty) return;
     if (cell?.f || typeof value !== "string" || cell.t === "e") {
-      throw new Error(`A célula ${address} de comentários do SIGAA deve conter texto, sem fórmulas ou erros.`);
+      throw new SpreadsheetError(`A célula ${address} de comentários do SIGAA deve conter texto, sem fórmulas ou erros.`);
     }
     if (normalizeLabel(value) === "(nenhum comentario registrado)") return;
     comments.push(Object.freeze({ id: rowIndex, text: value, rowIndex, sheetName }));
@@ -73,7 +74,7 @@ export function extractSigaaComments(
       /^comentarios? dos discentes? da turma$/u.test(label);
     if (isCommentSection) {
       if (!hasDiscipline) {
-        throw new Error(`O bloco de comentários do SIGAA na linha ${rowIndex} não possui uma disciplina anterior.`);
+        throw new SpreadsheetError(`O bloco de comentários do SIGAA na linha ${rowIndex} não possui uma disciplina anterior.`);
       }
       inComments = true;
       foundCommentSection = true;
@@ -98,7 +99,7 @@ export function extractSigaaComments(
   }
 
   if (!foundCommentSection) {
-    throw new Error("O relatório SIGAA foi identificado, mas não foram encontrados blocos de comentários após as disciplinas.");
+    throw new SpreadsheetError("O relatório SIGAA foi identificado, mas não foram encontrados blocos de comentários após as disciplinas.");
   }
   return Object.freeze(comments);
 }

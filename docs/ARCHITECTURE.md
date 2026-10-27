@@ -4,6 +4,20 @@
 * A aplicação não possui banco de dados, backend próprio, API Routes, Server Actions ou persistência dos comentários. O processamento e o estado de sessão ficam na memória do navegador.
 * O projeto Next.js (React) opera sob Exportação Estática (SSG). O arquivo `next.config.ts` possui `output: "export"`.
 
+O fluxo de importação/higienização usa Workers dedicados do navegador, um por
+operação, criados apenas após ação na interface. SheetJS e a função pura de
+sanitização executam em `workers/comments.worker.ts`; `lib/commentProcessing.ts`
+gerencia mensagens, timeout de 60 segundos, cancelamento e encerramento.
+O Worker é um asset estático da mesma origem, incluído em `out/`, não um serviço
+de backend. Não usa Fetch, filesystem, armazenamento ou Ollama.
+
+O File e os comentários atravessam `postMessage` por structured clone. As cópias
+temporárias continuam na RAM do navegador; objetos e arrays recebidos são
+congelados novamente, preservando texto e IDs. A edição da configuração invalida
+SANITIZED e resultados anteriores. Remover/trocar arquivo cancela leitura e
+higienização; desmontar a página também cancela a análise. Respostas de operações
+antigas não atualizam o estado. Não há fallback síncrono se o Worker falhar.
+
 ## 2. Comunicação com a IA (Ollama Local)
 * É proibido o uso de APIs comerciais em nuvem (OpenAI, Gemini).
 * O frontend se comunica diretamente com o modelo local (DeepSeek-R1) via `Fetch API` apontada para `http://localhost:11434/api/generate`.

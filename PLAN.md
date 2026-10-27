@@ -18,8 +18,14 @@ segmentador Unicode e ensaios sintéticos de capacidade; avaliador ABSA offline
 com rascunho de 20 casos para revisão humana. Consulte
 [o relatório da continuação](docs/CAPACITY-AND-EVALUATION-2026-10-23.md).
 
+Continuação em 26/10: parsing e sanitização transferidos para Workers dedicados
+do navegador, sem novas dependências, com timeout, cancelamento, recuperação de
+falhas e bloqueio da análise durante higienização. A exportação estática e os
+IDs físicos foram preservados. Evidências e limites estão em
+[WORKER-VALIDATION-2026-10-26](docs/WORKER-VALIDATION-2026-10-26.md).
+
 Consulte [NEXT_STEPS](docs/NEXT_STEPS.md) para o estado das recomendações,
-[a validação de manutenção](docs/MAINTENANCE-2026-10-23.md) para os testes atuais
+[a validação de Workers](docs/WORKER-VALIDATION-2026-10-26.md) para os testes atuais
 e [VALIDATION](docs/VALIDATION.md) para o registro histórico anterior.
 A implementação das funcionalidades não equivale a garantia de qualidade semântica
 do modelo ou conformidade jurídica automática.

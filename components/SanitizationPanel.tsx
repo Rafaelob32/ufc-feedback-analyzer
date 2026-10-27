@@ -2,28 +2,20 @@
 
 import { useState } from "react";
 import type { RawComment, SanitizedComment } from "@/types";
-
-export const registrationRules = {
-  "6-7": { min: 6, max: 7 },
-  "6": { min: 6, max: 6 },
-  "7": { min: 7, max: 7 },
-  "8": { min: 8, max: 8 },
-} as const;
-
-export interface SanitizationSettings {
-  namesText: string;
-  registrationRule: keyof typeof registrationRules;
-}
+import type { SanitizationSettings } from "@/lib/sanitizationSettings";
 
 interface SanitizationPanelProps {
   rawComments: readonly RawComment[];
   sanitizedComments: readonly SanitizedComment[];
   settings: SanitizationSettings;
   onSettingsChange: (settings: SanitizationSettings) => void;
+  isProcessing: boolean;
+  error: string;
+  onRetry: () => void;
 }
 
 export default function SanitizationPanel({
-  rawComments, sanitizedComments, settings, onSettingsChange,
+  rawComments, sanitizedComments, settings, onSettingsChange, isProcessing, error, onRetry,
 }: SanitizationPanelProps) {
   const [previewId, setPreviewId] = useState<number | null>(null);
   const [lookupId, setLookupId] = useState("");
@@ -89,11 +81,19 @@ export default function SanitizationPanel({
 
         <p className="text-xs leading-5 text-slate-500">E-mails comuns são mascarados automaticamente. As regras são reaplicadas após importar ou editar esta configuração. Nomes fora da lista e formatos não previstos podem permanecer no texto.</p>
 
-        <p role="status" aria-live="polite" aria-atomic="true" className="rounded-lg bg-[#eef3f8] px-4 py-3 text-sm text-[#2c4a6c]">
-          {rawComments.length === 0
+        <p role="status" aria-live="polite" aria-atomic="true" aria-busy={isProcessing} className="rounded-lg bg-[#eef3f8] px-4 py-3 text-sm text-[#2c4a6c]">
+          {isProcessing
+            ? "Higienizando comentários no navegador… Aguarde antes de analisar."
+            : error
+              ? "Higienização não concluída. RAW preservado; análise indisponível."
+              : rawComments.length === 0
             ? "Importe uma planilha com comentários para comparar as versões."
             : `${sanitizedComments.length} ${sanitizedComments.length === 1 ? "comentário higienizado" : "comentários higienizados"} em uma coleção separada. RAW preservado.`}
         </p>
+        {error && <div className="space-y-2">
+          <p role="alert" className="text-sm text-red-800">{error}</p>
+          <button type="button" onClick={onRetry} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm">Tentar higienizar novamente</button>
+        </div>}
 
         {original && sanitized && (
           <div>

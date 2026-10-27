@@ -23,10 +23,13 @@ for (const count of sizes) {
     const started = performance.now();
     await page.locator('input[type="file"]').setInputFiles({ name: "capacidade.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer });
     await expect(page.getByText(`${count} comentários identificados e carregados em memória.`, { exact: true })).toBeVisible();
+    // Inclui a higienização inicial, agora assíncrona, no tempo de importação.
+    await expect(page.getByText(`${count} comentários higienizados em uma coleção separada. RAW preservado.`, { exact: true })).toBeVisible();
     const importedMs = performance.now() - started;
     const dictionary = ["José Sintético", ...Array.from({ length: 99 }, (_, i) => "Nome Fictício " + i)].join("\n");
     const editing = performance.now();
     await page.getByLabel("Nomes conhecidos", { exact: true }).fill(dictionary);
+    await expect(page.getByRole("article", { name: "SANITIZED · MASCARADO" })).toBeVisible();
     await expect(page.getByRole("article", { name: "SANITIZED · MASCARADO" })).not.toContainText("Jose\u0301 Sintético");
     await expect(page.getByRole("article", { name: "RAW · ORIGINAL" })).toContainText("Jose\u0301 Sintético");
     const editMs = performance.now() - editing;

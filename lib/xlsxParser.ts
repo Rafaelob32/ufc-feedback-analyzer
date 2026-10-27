@@ -1,3 +1,4 @@
+import { SpreadsheetError } from "./spreadsheetError.ts";
 import { read, utils, type WorkSheet } from "xlsx";
 import { extractSigaaComments } from "./sigaaParser.ts";
 import { MAX_SHEET_ROWS, MAX_SHEET_COLUMNS, MAX_SHEET_CELLS, validateFileSize } from "./importLimits.ts";
@@ -17,14 +18,14 @@ export function extractRawComments(
   sheet: WorkSheet,
   sheetName: string,
 ): readonly RawComment[] {
-  if (!sheet["!ref"]) throw new Error("A primeira aba da planilha está vazia.");
+  if (!sheet["!ref"]) throw new SpreadsheetError("A primeira aba da planilha está vazia.");
 
   const range = utils.decode_range(sheet["!fullref"] ?? sheet["!ref"]);
   const rows = range.e.r - range.s.r + 1;
   const columns = range.e.c - range.s.c + 1;
   if (![range.s.r, range.s.c, range.e.r, range.e.c].every((n) => Number.isSafeInteger(n) && n >= 0) ||
       rows < 1 || columns < 1 || range.e.r >= MAX_SHEET_ROWS || range.e.c >= MAX_SHEET_COLUMNS || rows * columns > MAX_SHEET_CELLS) {
-    throw new Error("A primeira aba excede os limites de leitura: 50.000 linhas, 256 colunas e 500.000 posições de células. Divida o relatório antes de importar.");
+    throw new SpreadsheetError("A primeira aba excede os limites de leitura: 50.000 linhas, 256 colunas e 500.000 posições de células. Divida o relatório antes de importar.");
   }
   let headerRow = -1;
   const commentColumns: number[] = [];
@@ -48,14 +49,14 @@ export function extractRawComments(
     }
   }
 
-  if (headerRow === -1) throw new Error("A primeira aba da planilha está vazia.");
+  if (headerRow === -1) throw new SpreadsheetError("A primeira aba da planilha está vazia.");
   if (commentColumns.length === 0) {
     const sigaaComments = extractSigaaComments(sheet, sheetName);
     if (sigaaComments !== null) return sigaaComments;
-    throw new Error('Formato não reconhecido. Use o relatório de questões abertas do SIGAA/UFC ou uma tabela com “Comentário” ou “Comentários” na primeira linha preenchida da primeira aba.');
+    throw new SpreadsheetError('Formato não reconhecido. Use o relatório de questões abertas do SIGAA/UFC ou uma tabela com “Comentário” ou “Comentários” na primeira linha preenchida da primeira aba.');
   }
   if (commentColumns.length > 1) {
-    throw new Error("Há mais de uma coluna de comentários. Mantenha apenas uma na primeira aba.");
+    throw new SpreadsheetError("Há mais de uma coluna de comentários. Mantenha apenas uma na primeira aba.");
   }
 
   const rawComments: RawComment[] = [];
@@ -66,7 +67,7 @@ export function extractRawComments(
     if (!cell?.f && isEmpty(value)) continue;
     // Não converte números, erros ou resultados de fórmulas em texto bruto.
     if (cell?.f || typeof value !== "string" || cell.t === "e") {
-      throw new Error(`A célula ${address} da coluna de comentários deve conter texto, sem fórmulas ou erros.`);
+      throw new SpreadsheetError(`A célula ${address} da coluna de comentários deve conter texto, sem fórmulas ou erros.`);
     }
 
     const rowIndex = row + 1;
@@ -84,11 +85,13 @@ export function extractRawComments(
 
 /** Lê somente um arquivo selecionado no navegador; nunca usa filesystem ou rede. */
 export async function parseXlsxFile(file: File): Promise<readonly RawComment[]> {
-  if (typeof window === "undefined") {
-    throw new Error("A leitura de planilhas só está disponível no navegador.");
+  // Workers dedicados não têm window; Node não expõe self/importScripts.
+  const inWorker = typeof self !== "undefined" && "importScripts" in self;
+  if (typeof window === "undefined" && !inWorker) {
+    throw new SpreadsheetError("A leitura de planilhas só está disponível no navegador.");
   }
   if (!/\.(xls|xlsx)$/i.test(file.name)) {
-    throw new Error("Formato não aceito. Selecione uma planilha .xls ou .xlsx.");
+    throw new SpreadsheetError("Formato não aceito. Selecione uma planilha .xls ou .xlsx.");
   }
   validateFileSize(file.size);
 
@@ -104,11 +107,11 @@ export async function parseXlsxFile(file: File): Promise<readonly RawComment[]> 
       cellFormula: true,
     });
   } catch {
-    throw new Error("Não foi possível ler a planilha. Verifique se o arquivo está íntegro e sem senha.");
+    throw new SpreadsheetError("Não foi possível ler a planilha. Verifique se o arquivo está íntegro e sem senha.");
   }
 
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  if (!sheet) throw new Error("Não foi encontrada uma aba legível na planilha.");
+  if (!sheet) throw new SpreadsheetError("Não foi encontrada uma aba legível na planilha.");
   return extractRawComments(sheet, sheetName);
 }

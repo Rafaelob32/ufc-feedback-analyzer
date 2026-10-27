@@ -6,6 +6,13 @@ A leitura XLS/XLSX e o mascaramento ocorrem na memória do navegador. Não há
 persistência de comentários, backend próprio ou API de nuvem. Somente a coleção
 SANITIZED pode ser enviada ao serviço Ollama local, após ação explícita de análise.
 
+Parsing e higienização executam em Workers dedicados locais. A troca de mensagens
+entre a página e o Worker cria cópias temporárias de RAW, dicionário e SANITIZED na
+RAM do navegador; não envia esses dados para um servidor. O código do Worker é
+carregado como asset estático da própria aplicação. Cada Worker é encerrado ao
+concluir, falhar, ser cancelado ou atingir 60 segundos. Erros inesperados são
+substituídos por mensagens genéricas, sem conteúdo das células.
+
 ## Regras determinísticas
 
 `lib/sanitize.ts` substitui por `[DADO SENSÍVEL]`:
@@ -25,7 +32,8 @@ o dicionário e as amostras antes de analisar; a amostra não substitui revisão
 
 - RAW preserva texto, linha, aba e ID imutável. Nunca entra no prompt.
 - SANITIZED é uma coleção independente contendo apenas `id` e `text`; a sanitização não sobrescreve RAW.
-- Remover/trocar a planilha descarta comentários e resultados e cancela a análise anterior. Remover preserva nomes e configurações para a próxima importação na mesma página.
+- Remover/trocar a planilha descarta comentários e resultados e cancela leitura, higienização e análise anteriores. Remover preserva nomes e configurações para a próxima importação na mesma página.
+- Editar nomes ou matrícula apaga a versão SANITIZED anterior, cancela a operação anterior e bloqueia análise até concluir a nova higienização. RAW permanece intacto. Em caso de falha, é possível repetir a higienização sem reimportar.
 - Recarregar/fechar a página descarta também nomes e configurações. Isso é descarte de referências da aplicação, não uma garantia de apagamento forense da memória do sistema.
 - A aplicação não registra textos em logs. Navegador e Ollama são processos externos, cujas extensões, diagnósticos e políticas de retenção exigem avaliação própria.
 

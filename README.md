@@ -10,6 +10,10 @@ importação Excel → RAW imutável → SANITIZED → Ollama local → sumário
 
 **Manutenção de 23/10/2026:** Next.js e eslint-config-next atualizados para 16.4.2; build estático aprovado e audit de produção sem avisos conhecidos. Persistem cinco entradas altas na cadeia de lint. Veja as evidências, limitações e correções em [MAINTENANCE-2026-10-23](docs/MAINTENANCE-2026-10-23.md).
 
+**Continuação de 26/10/2026:** leitura e higienização em Web Worker, com cancelamento,
+tratamento de falhas e preservação de RAW/IDs. Consulte a
+[validação e comparação de desempenho](docs/WORKER-VALIDATION-2026-10-26.md).
+
 ## Executar
 
 Ambiente testado: Node.js 24.14.0 (também em `.nvmrc`), npm 11.9.0 e Python 3
@@ -47,10 +51,13 @@ do Zod. Uma falha em qualquer lote descarta o resultado parcial.
    Com mais de 100 comentários, use a paginação ou **Ir para o ID original**;
    todos permanecem acessíveis e seus IDs não são renumerados.
 3. Informe nomes conhecidos (um por linha) e ajuste o tamanho das matrículas.
+   Aguarde **Higienizando comentários** terminar e revise a versão mascarada.
+   Durante esse processamento a análise fica indisponível. Em caso de falha,
+   use **Tentar higienizar novamente**; o RAW permanece na memória.
 4. Escolha o modelo local e clique em **Analisar com IA**.
 5. Consulte o **Sumário rastreável** ou **Dashboard ABSA**. Clique em [ID]
    para abrir o texto original com linha e aba da planilha.
-6. Remova a planilha para descartar comentários e resultados. Recarregar ou
+6. Remova a planilha para cancelar o processamento e descartar comentários e resultados. Recarregar ou
    fechar a página também descarta as configurações mantidas em memória.
 
 São aceitos a primeira aba do relatório de questões abertas SIGAA/UFC, incluindo
@@ -70,6 +77,11 @@ ausência de classificação com sentimento neutro.
   destinados ao Ollama em http://localhost:11434.
 - RAW nunca entra no payload. SANITIZED contém apenas id e text.
   A interface exibe textos como texto React, sem executar HTML da planilha/IA.
+- Leitura e higienização usam Web Workers nativos, carregados como assets estáticos
+  da própria aplicação. São operações locais com cópias temporárias em RAM, sem
+  rede de dados ou persistência. Cada operação é encerrada ao concluir, falhar,
+  ser cancelada ou atingir 60 segundos. O navegador precisa permitir Workers;
+  não existe fallback que execute o processamento pesado na interface.
 - Regex e dicionário reconhecem os padrões configurados; **não garantem remoção
   de todo dado pessoal nem conformidade jurídica automática**. Revise antes de
   analisar. Nomes desconhecidos e formatos diferentes podem permanecer.
@@ -137,7 +149,8 @@ A primeira opção mede 100, 1.000 e 10.000 comentários; a segunda inclui 49.99
 mais o cabeçalho. Gera dados sintéticos na memória, não faz inferência e imprime
 tempos/contagens. Os números dependem do ambiente; não são limites universais de desempenho.
 E2E e capacidade usam a mesma porta 4173 e devem rodar sequencialmente.
-Veja o [ensaio registrado](docs/CAPACITY-AND-EVALUATION-2026-10-23.md).
+Veja o [ensaio com Worker](docs/WORKER-VALIDATION-2026-10-26.md) e o
+[registro anterior](docs/CAPACITY-AND-EVALUATION-2026-10-23.md).
 
 Para preparar a avaliação do TCC, há um [avaliador ABSA offline](docs/EVALUATION.md)
 e 20 exemplos sintéticos em estado draft. A pontuação exige uma referência com
