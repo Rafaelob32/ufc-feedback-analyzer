@@ -5,6 +5,8 @@ export const registrationRules = {
   "8": { min: 8, max: 8 },
 } as const;
 
+export const DEFAULT_REGISTRATION_RULE = "6-7" as const;
+
 export interface SanitizationSettings {
   namesText: string;
   registrationRule: keyof typeof registrationRules;

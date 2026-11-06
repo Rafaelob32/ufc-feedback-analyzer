@@ -8,11 +8,27 @@ importação Excel → RAW imutável → SANITIZED → Ollama local → sumário
 - [Auditoria técnica de 20/10/2026](docs/auditoria/README.md): arquitetura, requisitos, evidências e limitações observadas naquela data.
 - [Plano de próximos passos e verificação de 23/10/2026](docs/NEXT_STEPS.md): prioridades, critérios de aceite e registro do versionamento inicial.
 
-**Manutenção de 23/10/2026:** Next.js e eslint-config-next atualizados para 16.4.2; build estático aprovado e audit de produção sem avisos conhecidos. Persistem cinco entradas altas na cadeia de lint. Veja as evidências, limitações e correções em [MAINTENANCE-2026-10-23](docs/MAINTENANCE-2026-10-23.md).
+**Manutenção de 23/10/2026:** Next.js e eslint-config-next atualizados para 16.4.2; build estático aprovado e audit de produção sem avisos conhecidos naquela consulta. O audit completo apontava cinco entradas altas na cadeia de lint. Veja o registro histórico em [MAINTENANCE-2026-10-23](docs/MAINTENANCE-2026-10-23.md).
+
+**Segurança em 27/10/2026:** Zod atualizado para 4.6.7, conversão de schema nativa
+e limites de recepção das respostas do Ollama. Os dois audits passaram sem avisos
+conhecidos; o aviso antigo de `braces` foi retirado pela base oficial. A migração
+para ESLint 10 ainda depende de plugins compatíveis. Consulte a
+[verificação atual](docs/SECURITY-VALIDATION-2026-10-27.md); o registro de 23/10 acima é histórico.
 
 **Continuação de 26/10/2026:** leitura e higienização em Web Worker, com cancelamento,
 tratamento de falhas e preservação de RAW/IDs. Consulte a
 [validação e comparação de desempenho](docs/WORKER-VALIDATION-2026-10-26.md).
+
+**Atualização em 03/11/2026:** suporte a variantes locais do `llama3.1` ao lado do
+`deepseek-r1`, instrução de JSON compacto com subdivisão automática de lotes caso um
+lote com múltiplos comentários atinja `done_reason: "length"`, simplificação visual
+do painel de higienização (fixando na interface o padrão institucional da UFC de
+matrículas de 6 a 7 dígitos com campo de nomes em largura total) e opção para baixar
+localmente uma **planilha detalhada em Excel (`.xlsx` com 4 abas: `Dashboard`,
+`Sumarização`, `Classificações ABSA` e `Consolidado por ID`)**, além de sumarização
+(`.txt`), dashboard ABSA (`.csv`) e resultado estruturado (`.json`), sem incluir
+textos RAW/SANITIZED.
 
 ## Executar
 
@@ -33,16 +49,16 @@ Em outro terminal, caso o Ollama ainda não esteja em execução:
 
     OLLAMA_ORIGINS="http://localhost:3000,http://127.0.0.1:3000" ollama serve
 
-Instale o modelo local com: ollama pull deepseek-r1.
+Instale um modelo local compatível com: `ollama pull deepseek-r1` ou `ollama pull llama3.1`.
 Se o Ollama já roda como serviço, configure OLLAMA_ORIGINS no ambiente desse serviço;
 não abra outra instância na mesma porta. Não é necessário expor a porta 11434 à rede.
 
-O menu consulta /api/tags e lista variantes locais do DeepSeek-R1. Antes da
+O menu consulta /api/tags e lista variantes locais do DeepSeek-R1 e do Llama 3.1. Antes da
 inferência, /api/show verifica capacidades e `thinking.values` e rejeita aliases
 remotos. Se os metadados de thinking estiverem ausentes, uma sonda JSON sintética
 sem comentários testa o comportamento observado; falha nessa etapa bloqueia a análise.
 O payload usa think: false, temperatura zero e JSON Schema gerado
-do Zod. Uma falha em qualquer lote descarta o resultado parcial.
+do Zod. Se um lote com múltiplos comentários atingir o limite de tokens de saída (`done_reason: "length"`), ele é subdividido automaticamente ao meio; uma falha definitiva em qualquer lote descarta o resultado parcial.
 
 ## Usar
 
@@ -50,13 +66,19 @@ do Zod. Uma falha em qualquer lote descarta o resultado parcial.
 2. Confira os comentários importados e a comparação RAW/SANITIZED.
    Com mais de 100 comentários, use a paginação ou **Ir para o ID original**;
    todos permanecem acessíveis e seus IDs não são renumerados.
-3. Informe nomes conhecidos (um por linha) e ajuste o tamanho das matrículas.
+3. Informe nomes conhecidos (um por linha); e-mails e matrículas institucionais
+   (6 a 7 dígitos, padrão UFC) já são mascarados automaticamente.
    Aguarde **Higienizando comentários** terminar e revise a versão mascarada.
    Durante esse processamento a análise fica indisponível. Em caso de falha,
    use **Tentar higienizar novamente**; o RAW permanece na memória.
-4. Escolha o modelo local e clique em **Analisar com IA**.
+4. Escolha o modelo local (`deepseek-r1` ou `llama3.1`) e clique em **Analisar com IA**.
 5. Consulte o **Sumário rastreável** ou **Dashboard ABSA**. Clique em [ID]
-   para abrir o texto original com linha e aba da planilha.
+   para abrir o texto original com linha e aba da planilha. Use os botões de
+   exportação no topo dos resultados (**Baixar planilha detalhada (.xlsx)**,
+   **Baixar sumarização (.txt)**, **Baixar dashboard ABSA (.csv)** ou
+   **Baixar JSON (.json)**) para salvar os resultados gerados pela IA no seu
+   computador (apenas sínteses, classificações, matrizes e IDs numéricos são
+   exportados, nunca os textos dos comentários RAW/SANITIZED).
 6. Remova a planilha para cancelar o processamento e descartar comentários e resultados. Recarregar ou
    fechar a página também descarta as configurações mantidas em memória.
 
@@ -98,6 +120,11 @@ ausência de classificação com sentimento neutro.
   A inferência usa contexto de 8.192 tokens, até 2.048 tokens de saída e prazo de
   5 minutos por lote. Se ocorrer timeout ou truncamento, nenhum resultado parcial
   é mostrado como sucesso.
+- As respostas HTTP do Ollama têm limite de 1 MiB; os JSONs recebidos, inclusive
+  o conteúdo interno da análise, têm limite de 20.000 nós e profundidade 32 antes
+  do Zod. Respostas excessivas são rejeitadas com erro e permitem nova tentativa;
+  não são truncadas para caber no contrato. Esses limites são operacionais,
+  distintos dos limites de importação e da avaliação offline.
 - O sumário reúne pontos dos lotes; não executa uma segunda sumarização global.
   Assuntos semelhantes podem aparecer mais de uma vez. Os IDs asseguram
   rastreabilidade, não a correção semântica da classificação feita pelo modelo.
@@ -159,20 +186,20 @@ revisão humana registrada; não foi medida acurácia científica do modelo nest
 ## Dependências
 
 Nenhuma biblioteca adicional foi necessária para o dashboard: React, CSS e
-JavaScript nativo implementam gráfico, filtros e diálogo. O schema Zod permanece
-exatamente como definido em docs/AI_CONTRACT.md.
+JavaScript nativo implementam gráfico, filtros e diálogo. Zod 4.6.7 valida o
+contrato e gera JSON Schema nativamente; o conversor anterior foi removido.
+Campos, enums e regras do schema permanecem em docs/AI_CONTRACT.md.
 
 Playwright foi adicionado somente ao desenvolvimento para exercitar o fluxo real
 dos componentes, cancelamento, descarte, rastreabilidade e layouts desktop/mobile.
 Não entra no bundle de produção.
 
-Na verificação após atualização de 23/10/2026, o audit de produção não apontou
-vulnerabilidades conhecidas. O audit completo continua apontando cinco entradas altas na cadeia
-eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces.
-A [advisoria GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
-não informa versão corrigida de braces. Não foi aplicado npm audit fix --force,
-pois a sugestão regride o eslint-config-next para a versão 14. A pendência continua
-aberta e deve ser reavaliada quando houver correção compatível.
+Em 27/10/2026, `npm audit` e `npm audit --omit=dev` retornaram zero avisos
+conhecidos após a atualização do Zod. A
+[advisoria GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+foi retirada pela base oficial; isso não foi uma correção de `braces` no código
+do projeto. O novo aviso do Zod e sua resolução estão no relatório de segurança.
+Não foi usado `audit fix --force`, override de peers ou downgrade do Next.
 
 O ESLint 9.39.5 também está fora de suporte. A tentativa com ESLint 10.13.0 passou
 no lint, mas os plugins transitivos import/jsx-a11y/react ainda declaram apenas

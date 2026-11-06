@@ -6,7 +6,7 @@ import AnalysisPanel from "@/components/AnalysisPanel";
 import ResultsPanel from "@/components/ResultsPanel";
 import { listLocalModels } from "@/lib/ollamaConnection";
 import SanitizationPanel from "@/components/SanitizationPanel";
-import type { SanitizationSettings } from "@/lib/sanitizationSettings";
+import { DEFAULT_REGISTRATION_RULE, type SanitizationSettings } from "@/lib/sanitizationSettings";
 import { parseComments, sanitizeInWorker, ProcessingError } from "@/lib/commentProcessing";
 import { analyzeComments, OLLAMA_MODEL, OllamaError } from "@/lib/ollama";
 import type { AnalysisResult } from "@/lib/schema";
@@ -15,7 +15,7 @@ import type { RawComment, SanitizedComment } from "@/types";
 export default function Home() {
   const [rawComments, setRawComments] = useState<readonly RawComment[]>([]);
   const [sanitizedComments, setSanitizedComments] = useState<readonly SanitizedComment[]>([]);
-  const [sanitizationSettings, setSanitizationSettings] = useState<SanitizationSettings>({ namesText: "", registrationRule: "6-7" });
+  const [sanitizationSettings, setSanitizationSettings] = useState<SanitizationSettings>({ namesText: "", registrationRule: DEFAULT_REGISTRATION_RULE });
   const settingsRef = useRef(sanitizationSettings);
   const [readStatus, setReadStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [readError, setReadError] = useState("");
@@ -40,7 +40,7 @@ export default function Home() {
       if (controller.signal.aborted) return;
       setModels(available);
       setModel((previous) => available.includes(previous) ? previous : available[0] ?? "");
-      setModelsError(available.length ? "" : "Nenhum DeepSeek-R1 local encontrado. Instale-o com ollama pull deepseek-r1 e atualize a lista.");
+      setModelsError(available.length ? "" : "Nenhum modelo local compatível encontrado. Instale com ollama pull deepseek-r1 ou ollama pull llama3.1 e atualize a lista.");
     }).catch((error) => {
       if (controller.signal.aborted) return;
       setModels([]);
@@ -120,7 +120,7 @@ export default function Home() {
     const request = new AbortController();
     sanitizationRequest.current = request;
     try {
-      const comments = await sanitizeInWorker(raw, settings, request.signal);
+      const comments = await sanitizeInWorker(raw, { ...settings, registrationRule: DEFAULT_REGISTRATION_RULE }, request.signal);
       if (sanitizationRequest.current !== request) return;
       setSanitizedComments(comments);
     } catch (error) {
@@ -136,11 +136,12 @@ export default function Home() {
 
   function handleSettingsChange(settings: SanitizationSettings) {
     invalidateAnalysis();
+    const fixedSettings: SanitizationSettings = { ...settings, registrationRule: DEFAULT_REGISTRATION_RULE };
     // Uma leitura pendente usará a configuração mais recente ao terminar.
-    settingsRef.current = settings;
-    setSanitizationSettings(settings);
+    settingsRef.current = fixedSettings;
+    setSanitizationSettings(fixedSettings);
     // Somente a coleção SANITIZED é substituída; RAW permanece intacto.
-    void startSanitization(rawComments, settings);
+    void startSanitization(rawComments, fixedSettings);
   }
 
   async function handleFileSelect(file: File | null) {

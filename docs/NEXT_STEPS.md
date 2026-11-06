@@ -6,24 +6,28 @@ Este documento organiza recomendações e critérios de aceite. O registro inici
 abaixo é histórico. As correções implementadas nesta data e suas evidências estão
 em [MAINTENANCE-2026-10-23](MAINTENANCE-2026-10-23.md).
 
-## Estado após as manutenções de 23 e 26/10/2026
+## Estado após as manutenções de 23, 26, 27/10 e 03/11/2026
 
 | Item | Estado |
 | --- | --- |
 | 0 — Next.js | Corrigido: Next.js/config 16.4.2, build estático aprovado e audit de produção sem avisos conhecidos |
 | 1 — Unicode | Corrigido com regressões NFC/NFD, preservando RAW, IDs e trechos não mascarados |
-| 2 — thinking | Verificação explícita de valores e sonda sintética para metadados ausentes; sonda real passou no modelo instalado |
+| 2 — thinking | Verificação explícita de valores e sonda sintética para metadados ausentes; sonda real passou nos modelos instalados (`deepseek-r1:latest` e `llama3.1:latest`) |
 | 3 — Privacidade/descarte | UI e contratos alinhados: remover preserva configurações; IDs/Zod não provam acurácia ou conformidade jurídica |
-| 4 — Lint | Reavaliado; cinco entradas altas da mesma cadeia permanecem. ESLint 9 sem suporte; tentativa com 10 revelou plugins incompatíveis e foi revertida |
-| 5 — E2E | Suíte Playwright criada para export estático, fluxo, cancelamento, alterações, rejeição de IDs e descarte; resultados no relatório de manutenção |
-| 6 — TCC | Protocolo e avaliador ABSA offline preparados, com 20 exemplos sintéticos draft. Revisão humana, população, digest experimental e critérios de aceite continuam pendentes |
+| 4 — Lint | Reavaliado em 27/10: advisory de braces retirado pela base oficial e sem avisos no audit. ESLint 9 segue sem suporte; os plugins publicados ainda não declaram compatibilidade com 10 |
+| 5 — E2E | Suíte Playwright criada para export estático, fluxo, cancelamento, alterações, rejeição de IDs, exportação de resultados e descarte |
+| 6 — TCC | Protocolo e avaliador ABSA offline preparados, com 20 exemplos sintéticos draft e exportação direta do JSON de resultados pela interface. Revisão humana, população, digest experimental e critérios de aceite continuam pendentes |
 | 7 — Ambiente/capacidade | Instalação limpa aprovada; comparação limitada a 100 opções e segmentador reutilizado. Em 26/10, parsing/sanitização movidos para Worker com cancelamento e novo ensaio até 49.999 comentários. Não homologados todos os formatos, 500.000 células ou outros aparelhos |
+| 8 — Recepção/Zod | Novo alerta alto identificado em 27/10; Zod atualizado para 4.6.7 com conversor nativo. Respostas do Ollama agora têm limites de bytes/nós/profundidade antes da validação; audits completo e produção sem avisos conhecidos |
+| 9 — Modelos, UI e exportação | Em 03/11, suporte a variantes locais `llama3.1` ao lado de `deepseek-r1`, subdivisão automática de lotes em `done_reason: "length"`, simplificação visual do painel de higienização (regra de matrícula de 6 a 7 dígitos fixa por omissão na UI) e download local em planilha detalhada (`.xlsx` com 4 abas), sumarização (`.txt`), dashboard ABSA (`.csv`) e resultado estruturado (`.json`) sem textos RAW/SANITIZED |
 
 Evidências da continuação: [capacidade e avaliação](CAPACITY-AND-EVALUATION-2026-10-23.md).
 
 Próxima prioridade funcional: avaliação semântica e capacidade com critérios acordados,
 seguindo [EXPERIMENT_PROTOCOL](EXPERIMENT_PROTOCOL.md). Nenhum teste técnico substitui
-a anotação e revisão do orientador. Acompanhar também a correção de `braces`.
+a anotação e revisão do orientador. Acompanhar a compatibilidade dos plugins com
+ESLint 10; o advisory de `braces` foi retirado, conforme
+[a verificação de segurança de 27/10](SECURITY-VALIDATION-2026-10-27.md).
 Parsing/sanitização agora executam em Web Worker com cancelamento, restauração
 de imutabilidade após structured clone e análise bloqueada durante o processamento.
 A [validação de 26/10](WORKER-VALIDATION-2026-10-26.md) registra as medições,

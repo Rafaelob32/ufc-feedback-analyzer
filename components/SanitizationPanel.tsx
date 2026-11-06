@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { RawComment, SanitizedComment } from "@/types";
-import type { SanitizationSettings } from "@/lib/sanitizationSettings";
+import { DEFAULT_REGISTRATION_RULE, type SanitizationSettings } from "@/lib/sanitizationSettings";
 
 interface SanitizationPanelProps {
   rawComments: readonly RawComment[];
@@ -45,41 +45,23 @@ export default function SanitizationPanel({
       </div>
 
       <div className="space-y-5 p-5 sm:p-7">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="known-names" className="block text-sm font-semibold text-slate-700">Nomes conhecidos</label>
-            <textarea
-              id="known-names"
-              rows={3}
-              value={settings.namesText}
-              onChange={(event) => onSettingsChange({ ...settings, namesText: event.target.value })}
-              autoComplete="off"
-              spellCheck={false}
-              aria-describedby="known-names-help"
-              placeholder={"Um nome por linha"}
-              className="mt-2 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285b9f]"
-            />
-            <p id="known-names-help" className="mt-1 text-xs leading-5 text-slate-500">Informe os nomes e suas variações. Maiúsculas e minúsculas são equivalentes. A lista fica só nesta página.</p>
-          </div>
-          <div>
-            <label htmlFor="registration-rule" className="block text-sm font-semibold text-slate-700">Padrão de matrícula</label>
-            <select
-              id="registration-rule"
-              value={settings.registrationRule}
-              onChange={(event) => onSettingsChange({ ...settings, registrationRule: event.target.value as SanitizationSettings["registrationRule"] })}
-              aria-describedby="registration-help"
-              className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285b9f]"
-            >
-              <option value="6-7">6 a 7 dígitos</option>
-              <option value="6">6 dígitos</option>
-              <option value="7">7 dígitos</option>
-              <option value="8">8 dígitos</option>
-            </select>
-            <p id="registration-help" className="mt-2 text-xs leading-5 text-slate-500">Mascara blocos numéricos completos. Números curtos, como nota 10 ou 2 faltas, são preservados.</p>
-          </div>
+        <div>
+          <label htmlFor="known-names" className="block text-sm font-semibold text-slate-700">Nomes conhecidos</label>
+          <textarea
+            id="known-names"
+            rows={3}
+            value={settings.namesText}
+            onChange={(event) => onSettingsChange({ namesText: event.target.value, registrationRule: DEFAULT_REGISTRATION_RULE })}
+            autoComplete="off"
+            spellCheck={false}
+            aria-describedby="known-names-help"
+            placeholder={"Um nome por linha"}
+            className="mt-2 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285b9f]"
+          />
+          <p id="known-names-help" className="mt-1 text-xs leading-5 text-slate-500">Informe os nomes e suas variações. Maiúsculas e minúsculas são equivalentes. A lista fica só nesta página.</p>
         </div>
 
-        <p className="text-xs leading-5 text-slate-500">E-mails comuns são mascarados automaticamente. As regras são reaplicadas após importar ou editar esta configuração. Nomes fora da lista e formatos não previstos podem permanecer no texto.</p>
+        <p className="text-xs leading-5 text-slate-500">E-mails e matrículas institucionais (6 a 7 dígitos) são mascarados automaticamente como [DADO SENSÍVEL]. Nomes fora da lista e formatos não previstos podem permanecer no texto.</p>
 
         <p role="status" aria-live="polite" aria-atomic="true" aria-busy={isProcessing} className="rounded-lg bg-[#eef3f8] px-4 py-3 text-sm text-[#2c4a6c]">
           {isProcessing
