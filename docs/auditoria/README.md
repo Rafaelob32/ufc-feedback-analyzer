@@ -16,6 +16,10 @@ registra as medições sintéticas, a paginação da comparação e o avaliador 
 registra a mitigação dos bloqueios de processamento, os testes de cancelamento e
 a preservação da exportação estática. Não altera o parecer histórico abaixo.
 
+**Continuação de 27/10:** [reavaliação de dependências e recepção de JSON](../SECURITY-VALIDATION-2026-10-27.md)
+registra a retirada do advisory de braces, a atualização de Zod e limites de
+respostas do Ollama. Os resultados anteriores continuam sendo evidências datadas.
+
 **Parecer: aprovada com ressalvas para demonstração controlada da PoC com dados sintéticos.** Este parecer não aprova uso institucional com dados pessoais, decisões automatizadas sobre pessoas ou alegações de conformidade integral com a LGPD. Consulte os critérios do [parecer final](10-PARECER-TECNICO-FINAL.md).
 
 ## Índice e ordem de leitura
