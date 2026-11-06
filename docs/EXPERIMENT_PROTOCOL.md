@@ -42,7 +42,7 @@ dicionários pessoais, respostas brutas e traces não devem ser adicionados ao G
 
 - [EVALUATION](EVALUATION.md): comando offline para métricas ABSA, validação de IDs e hashes dos arquivos; bloqueia referências sem registro de revisão humana.
 - `tests/fixtures/absa-draft.json`: 20 exemplos sintéticos propostos por IA, **não revisados**. Serve de ponto de partida, não de evidência de acurácia.
-- `npm run test:capacity`: importação e edição do dicionário em volumes sintéticos, sem inferência. Resultados e limites em [CAPACITY-AND-EVALUATION-2026-10-23](CAPACITY-AND-EVALUATION-2026-10-23.md).
+- `npm run test:capacity`: importação e edição do dicionário em volumes sintéticos, sem inferência.
 
 Nenhuma dessas ferramentas escolhe a população, congela o digest do experimento
 ou substitui os critérios de aceite e a revisão humana das sínteses.

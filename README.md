@@ -3,32 +3,12 @@
 Aplicação estática para analisar avaliações institucionais no navegador:
 importação Excel → RAW imutável → SANITIZED → Ollama local → sumário rastreável e ABSA.
 
-## Auditoria e próximos passos
+## Documentação técnica
 
-- [Auditoria técnica de 20/10/2026](docs/auditoria/README.md): arquitetura, requisitos, evidências e limitações observadas naquela data.
-- [Plano de próximos passos e verificação de 23/10/2026](docs/NEXT_STEPS.md): prioridades, critérios de aceite e registro do versionamento inicial.
-
-**Manutenção de 23/10/2026:** Next.js e eslint-config-next atualizados para 16.4.2; build estático aprovado e audit de produção sem avisos conhecidos naquela consulta. O audit completo apontava cinco entradas altas na cadeia de lint. Veja o registro histórico em [MAINTENANCE-2026-10-23](docs/MAINTENANCE-2026-10-23.md).
-
-**Segurança em 27/10/2026:** Zod atualizado para 4.6.7, conversão de schema nativa
-e limites de recepção das respostas do Ollama. Os dois audits passaram sem avisos
-conhecidos; o aviso antigo de `braces` foi retirado pela base oficial. A migração
-para ESLint 10 ainda depende de plugins compatíveis. Consulte a
-[verificação atual](docs/SECURITY-VALIDATION-2026-10-27.md); o registro de 23/10 acima é histórico.
-
-**Continuação de 26/10/2026:** leitura e higienização em Web Worker, com cancelamento,
-tratamento de falhas e preservação de RAW/IDs. Consulte a
-[validação e comparação de desempenho](docs/WORKER-VALIDATION-2026-10-26.md).
-
-**Atualização em 03/11/2026:** suporte a variantes locais do `llama3.1` ao lado do
-`deepseek-r1`, instrução de JSON compacto com subdivisão automática de lotes caso um
-lote com múltiplos comentários atinja `done_reason: "length"`, simplificação visual
-do painel de higienização (fixando na interface o padrão institucional da UFC de
-matrículas de 6 a 7 dígitos com campo de nomes em largura total) e opção para baixar
-localmente uma **planilha detalhada em Excel (`.xlsx` com 4 abas: `Dashboard`,
-`Sumarização`, `Classificações ABSA` e `Consolidado por ID`)**, além de sumarização
-(`.txt`), dashboard ABSA (`.csv`) e resultado estruturado (`.json`), sem incluir
-textos RAW/SANITIZED.
+- [Arquitetura do sistema](docs/ARCHITECTURE.md): execução 100% client-side, Web Workers, comunicação com Ollama local e exportação estática.
+- [Privacidade e mascaramento](docs/PRIVACY.md): regras determinísticas de higienização (e-mails, matrículas UFC de 6 a 7 dígitos e dicionário de nomes), isolamento entre `RAW` e `SANITIZED` e limites.
+- [Contrato de interface com a IA](docs/AI_CONTRACT.md): schema Zod 4, controle de `thinking`, limites de recepção JSON e invariantes de validação de IDs.
+- [Avaliação ABSA offline](docs/EVALUATION.md) e [Protocolo experimental](docs/EXPERIMENT_PROTOCOL.md): ferramentas e diretrizes para aferição de métricas no TCC.
 
 ## Executar
 
@@ -150,9 +130,7 @@ verificada em HTTP local; uma hospedagem HTTPS pode sofrer restrições de acess
 à rede local/conteúdo misto do navegador.
 
 Os testes usam planilhas sintéticas e respostas simuladas para falhas, cancelamento,
-privacidade, contratos, filtros e limites. Integrações reais e revisão visual devem
-ser registradas separadamente em relatórios datados. [VALIDATION](docs/VALIDATION.md)
-preserva os resultados anteriores à manutenção atual.
+privacidade, contratos, filtros e limites.
 
 Para testar a interface desktop/mobile contra o export recém-gerado:
 
@@ -176,8 +154,6 @@ A primeira opção mede 100, 1.000 e 10.000 comentários; a segunda inclui 49.99
 mais o cabeçalho. Gera dados sintéticos na memória, não faz inferência e imprime
 tempos/contagens. Os números dependem do ambiente; não são limites universais de desempenho.
 E2E e capacidade usam a mesma porta 4173 e devem rodar sequencialmente.
-Veja o [ensaio com Worker](docs/WORKER-VALIDATION-2026-10-26.md) e o
-[registro anterior](docs/CAPACITY-AND-EVALUATION-2026-10-23.md).
 
 Para preparar a avaliação do TCC, há um [avaliador ABSA offline](docs/EVALUATION.md)
 e 20 exemplos sintéticos em estado draft. A pontuação exige uma referência com

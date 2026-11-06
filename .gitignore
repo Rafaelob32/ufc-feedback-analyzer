@@ -32,3 +32,12 @@ Thumbs.db
 *.swp
 *~
 .idea/
+
+# Instruções de agentes de IA e logs internos de trabalho
+AGENTS.md
+CLAUDE.md
+PLAN.md
+docs/NEXT_STEPS.md
+docs/VALIDATION.md
+docs/*-2026-*.md
+docs/auditoria/

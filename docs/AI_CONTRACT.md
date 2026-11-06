@@ -120,7 +120,6 @@ substitui a medição do corpo efetivamente recebido.
 Referências: [conversão nativa do Zod](https://zod.dev/json-schema),
 [migração de inteiros](https://zod.dev/v4/changelog#int-accepts-safe-integers-only)
 e [estado do conversor anterior](https://github.com/StefanTerdell/zod-to-json-schema),
-consultados em 27/10/2026. Evidências locais em
-[SECURITY-VALIDATION-2026-10-27](SECURITY-VALIDATION-2026-10-27.md).
+consultados em 27/10/2026.
 
 Referência dos controles de thinking: [documentação oficial do Ollama](https://docs.ollama.com/capabilities/thinking), consultada em 23/10/2026.
