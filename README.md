@@ -6,7 +6,7 @@ importação Excel → RAW imutável → SANITIZED → Ollama local → sumário
 ## Documentação técnica
 
 - [Arquitetura do sistema](docs/ARCHITECTURE.md): execução 100% client-side, Web Workers, comunicação com Ollama local e exportação estática.
-- [Privacidade e mascaramento](docs/PRIVACY.md): regras determinísticas de higienização (e-mails, matrículas UFC de 6 a 7 dígitos e dicionário de nomes), isolamento entre `RAW` e `SANITIZED` e limites.
+- [Privacidade e mascaramento](docs/PRIVACY.md): regras determinísticas de higienização 
 - [Contrato de interface com a IA](docs/AI_CONTRACT.md): schema Zod 4, controle de `thinking`, limites de recepção JSON e invariantes de validação de IDs.
 - [Avaliação ABSA offline](docs/EVALUATION.md) e [Protocolo experimental](docs/EXPERIMENT_PROTOCOL.md): ferramentas e diretrizes para aferição de métricas no TCC.
 
