@@ -2,8 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { AnalysisResult } from "@/lib/schema";
-import { ASPECTS, SENTIMENTS, classificationRows, countSentiments, filterClassifications, type Aspect, type Sentiment } from "@/lib/results";
+import {
+  ASPECTS, SENTIMENTS, buildDetailedResultsXlsx, classificationRows, countSentiments, filterClassifications,
+  formatAbsaDashboardCsv, formatAnalysisJson, formatSummaryDownload,
+  type Aspect, type Sentiment,
+} from "@/lib/results";
 import type { RawComment } from "@/types";
+
+function downloadFile(filename: string, content: string | Uint8Array, mimeType: string) {
+  const part = typeof content === "string" ? content : new Uint8Array(content);
+  const blob = new Blob([part], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
 
 const sentimentColors: Record<Sentiment, string> = {
   Positivo: "bg-emerald-100 text-emerald-900",
@@ -49,6 +66,7 @@ export default function ResultsPanel({ result, rawComments, model }: {
   const summaryTab = useRef<HTMLButtonElement>(null);
   const absaTab = useRef<HTMLButtonElement>(null);
   const rawById = useMemo(() => new Map(rawComments.map((comment) => [comment.id, comment])), [rawComments]);
+  const commentIds = useMemo(() => rawComments.map((comment) => comment.id), [rawComments]);
   const rows = useMemo(() => classificationRows(result), [result]);
   const filtered = useMemo(() => filterClassifications(rows, aspect, sentiment), [rows, aspect, sentiment]);
   const counts = countSentiments(filtered);
@@ -71,8 +89,46 @@ export default function ResultsPanel({ result, rawComments, model }: {
 
   return (
     <section id="resultados" aria-labelledby="results-title" className="mt-6 min-w-0 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
-      <p className="text-[10px] font-bold tracking-[0.16em] text-[#47678f]">04 · RESULTADOS</p>
-      <h2 id="results-title" className="mt-2 text-xl font-semibold text-[#172b43]">Cada conclusão, sua evidência</h2>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-bold tracking-[0.16em] text-[#47678f]">04 · RESULTADOS</p>
+          <h2 id="results-title" className="mt-2 text-xl font-semibold text-[#172b43]">Cada conclusão, sua evidência</h2>
+        </div>
+        <div role="group" aria-label="Baixar resultados da análise" className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadFile(
+              "avalia-resultados-detalhados.xlsx",
+              buildDetailedResultsXlsx(result, { model, totalComments: rawComments.length, commentIds, aspect, sentiment }),
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )}
+            className="min-h-11 rounded-lg bg-[#244b7b] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#183959] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            Baixar planilha detalhada (.xlsx)
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadFile("avalia-sumarizacao.txt", formatSummaryDownload(result, { model, totalComments: rawComments.length }), "text/plain;charset=utf-8")}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            Baixar sumarização (.txt)
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadFile("avalia-dashboard-absa.csv", formatAbsaDashboardCsv(result, { model, totalComments: rawComments.length, aspect, sentiment }), "text/csv;charset=utf-8")}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            Baixar dashboard ABSA (.csv)
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadFile("avalia-resultado.json", formatAnalysisJson(result), "application/json;charset=utf-8")}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            Baixar JSON (.json)
+          </button>
+        </div>
+      </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">Clique nos números para conferir o texto original. As interpretações do modelo precisam de revisão humana.</p>
       <p className="mt-2 break-words text-xs text-slate-500">Modelo: {model} · {rawComments.length} comentários enviados · {classified} com classificação ABSA.</p>
       <div role="tablist" aria-label="Resultados da análise" className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">

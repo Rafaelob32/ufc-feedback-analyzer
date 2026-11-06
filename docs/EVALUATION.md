@@ -29,13 +29,15 @@ Não misture corpus de desenvolvimento com avaliação final sem descrever o vi�
 ## Comando
 
 Após uma execução experimental, forneça um JSON no formato `AnalysisResult`
-(`summary` e `absa`, conforme AI_CONTRACT), não o envelope `response` do Ollama:
+(`summary` e `absa`, conforme AI_CONTRACT), não o envelope `response` do Ollama.
+Você pode obter esse arquivo clicando diretamente em **Baixar JSON (.json)**
+no painel de resultados da interface (`avalia-resultado.json`):
 
 ```bash
-npm run evaluate:absa -- /tmp/referencia-revisada.json /tmp/resultado.json
+npm run evaluate:absa -- /tmp/referencia-revisada.json /tmp/avalia-resultado.json
 ```
 
-O comando não executa inferência nem extrai resultados automaticamente da interface.
+O comando não executa inferência.
 Ele exige uma referência revisada, IDs únicos e pares não duplicados na referência.
 Valida o retorno com o Zod original e rejeita IDs inexistentes tanto no ABSA quanto
 nas evidências de summary. Erros não imprimem os textos dos arquivos.

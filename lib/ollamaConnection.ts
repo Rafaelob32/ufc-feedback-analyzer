@@ -1,12 +1,13 @@
 import { z } from "zod";
+import { JsonLimitError, parseBoundedJson, readBoundedJson } from "./jsonLimits.ts";
 
 export const OLLAMA_MODEL = "deepseek-r1:latest";
 const OLLAMA_ORIGIN = "http://localhost:11434";
 export class OllamaError extends Error {}
 
-// A PoC usa exclusivamente variantes locais do DeepSeek-R1, nunca aliases cloud.
-export function isLocalDeepSeek(name: string) {
-  return /^deepseek-r1(?::[a-z0-9._-]+)?$/i.test(name) && !/cloud/i.test(name);
+// A PoC usa exclusivamente variantes locais homologadas (DeepSeek-R1 e Llama 3.1), nunca aliases cloud.
+export function isSupportedLocalModel(name: string) {
+  return /^(?:deepseek-r1|llama3\.1)(?::[a-z0-9._-]+)?$/i.test(name) && !/cloud/i.test(name);
 }
 
 export async function requestOllama(
@@ -31,8 +32,9 @@ export async function requestOllama(
       throw new OllamaError("O Ollama retornou HTTP " + response.status + ". Verifique o serviço local e tente novamente.");
     }
     try {
-      return await response.json();
-    } catch {
+      return await readBoundedJson(response, controller.signal);
+    } catch (error) {
+      if (error instanceof JsonLimitError) throw new OllamaError("A resposta do Ollama excedeu o limite local de 1 MiB ou de complexidade JSON. Nenhum resultado foi armazenado.");
       throw new OllamaError("O Ollama não retornou uma resposta JSON completa. Tente novamente.");
     }
   } catch (error) {
@@ -56,12 +58,12 @@ export async function listLocalModels(signal?: AbortSignal): Promise<string[]> {
   const parsed = ModelsSchema.safeParse(await requestOllama("tags", signal));
   if (!parsed.success) throw new OllamaError("A lista de modelos do Ollama é inválida.");
   return [...new Set(parsed.data.models.filter((model) =>
-    isLocalDeepSeek(model.name) && !model.remote_host && !model.remote_model,
+    isSupportedLocalModel(model.name) && !model.remote_host && !model.remote_model,
   ).map(({ name }) => name))].sort();
 }
 
 export async function verifyLocalModel(model: string, signal?: AbortSignal): Promise<void> {
-  if (!isLocalDeepSeek(model)) throw new OllamaError("Selecione um modelo DeepSeek-R1 local.");
+  if (!isSupportedLocalModel(model)) throw new OllamaError("Selecione um modelo local compatível (DeepSeek-R1 ou Llama 3.1).");
   const parsed = z.object({
     capabilities: z.array(z.string()),
     remote_host: z.string().optional(), remote_model: z.string().optional(),
@@ -69,7 +71,7 @@ export async function verifyLocalModel(model: string, signal?: AbortSignal): Pro
   }).safeParse(await requestOllama("show", signal, { model }));
   if (!parsed.success || parsed.data.remote_host || parsed.data.remote_model ||
       !parsed.data.capabilities.includes("completion")) {
-    throw new OllamaError("O modelo precisa executar localmente e informar capacidades válidas de geração e thinking. Confira a instalação do DeepSeek-R1.");
+    throw new OllamaError("O modelo precisa executar localmente e informar capacidades válidas de geração e thinking. Confira a instalação no Ollama.");
   }
   if (parsed.data.thinking) {
     if (!parsed.data.thinking.values.includes(false)) {
@@ -92,7 +94,7 @@ export async function verifyLocalModel(model: string, signal?: AbortSignal): Pro
   if (probe.success && !probe.data.thinking?.trim() && probe.data.done_reason !== "length" &&
       !/<\/?think\b/i.test(probe.data.response)) {
     try {
-      compatible = z.object({ ok: z.literal(true) }).strict().safeParse(JSON.parse(probe.data.response)).success;
+      compatible = z.object({ ok: z.literal(true) }).strict().safeParse(parseBoundedJson(probe.data.response)).success;
     } catch { /* A falha expõe apenas uma mensagem controlada, nunca a resposta. */ }
   }
   if (!compatible) {

@@ -27,7 +27,7 @@ export default function AnalysisPanel({
           <p className="text-[10px] font-bold tracking-[0.16em] text-[#47678f]">03 · ANÁLISE LOCAL</p>
           <h2 id="analise-titulo" className="mt-2 text-lg font-semibold text-[#172b43]">Analisar com o Ollama</h2>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">Somente DeepSeek-R1 local</span>
+        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">DeepSeek-R1 / Llama 3.1 local</span>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Revise a amostra acima antes de analisar. Somente os comentários SANITIZED e seus IDs serão enviados ao Ollama neste computador.

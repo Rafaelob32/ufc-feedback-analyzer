@@ -209,6 +209,47 @@ test("export estático: upload, máscara, payload, resultados, filtros e evidên
   await page.getByLabel("Aspecto", { exact: true }).selectOption("Infraestrutura");
   await expect(page.getByRole("table")).toContainText("Negativo");
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(1);
+
+  const readDownload = async (buttonName) => {
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: buttonName, exact: true }).click(),
+    ]);
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const buffer = Buffer.concat(chunks);
+    return { filename: download.suggestedFilename(), buffer, text: buffer.toString("utf8") };
+  };
+
+  const xlsxDownload = await readDownload("Baixar planilha detalhada (.xlsx)");
+  expect(xlsxDownload.filename).toBe("avalia-resultados-detalhados.xlsx");
+  const exportedWorkbook = XLSX.read(xlsxDownload.buffer, { type: "buffer" });
+  expect(exportedWorkbook.SheetNames).toEqual(["Dashboard", "Sumarização", "Classificações ABSA", "Consolidado por ID"]);
+  const serializedWorkbook = exportedWorkbook.SheetNames
+    .map((name) => JSON.stringify(XLSX.utils.sheet_to_json(exportedWorkbook.Sheets[name], { header: 1 })))
+    .join("\n");
+  expect(serializedWorkbook).toContain("Didática clara e infraestrutura a melhorar.");
+  expect(serializedWorkbook).not.toMatch(/Ana Silva|ana\.teste@example\.test|123456/);
+
+  const summaryDownload = await readDownload("Baixar sumarização (.txt)");
+  expect(summaryDownload.filename).toBe("avalia-sumarizacao.txt");
+  expect(summaryDownload.text).toContain("Didática clara e infraestrutura a melhorar.");
+  expect(summaryDownload.text).toContain("Evidências: [2], [4]");
+  expect(summaryDownload.text).not.toMatch(/Ana Silva|ana\.teste@example\.test|123456/);
+
+  const csvDownload = await readDownload("Baixar dashboard ABSA (.csv)");
+  expect(csvDownload.filename).toBe("avalia-dashboard-absa.csv");
+  expect(csvDownload.text).toContain("Filtro de aspecto,Infraestrutura");
+  expect(csvDownload.text).toContain("4,Infraestrutura,Negativo");
+  expect(csvDownload.text).not.toContain("2,Didática,Positivo");
+  expect(csvDownload.text).not.toMatch(/Ana Silva|ana\.teste@example\.test|123456/);
+
+  const jsonDownload = await readDownload("Baixar JSON (.json)");
+  expect(jsonDownload.filename).toBe("avalia-resultado.json");
+  expect(JSON.parse(jsonDownload.text)).toEqual(result);
+  expect(jsonDownload.text).not.toMatch(/Ana Silva|ana\.teste@example\.test|123456/);
+
   await page.getByLabel("Sentimento", { exact: true }).selectOption("Positivo");
   await expect(page.getByText("Nenhuma classificação corresponde aos filtros.")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -258,6 +299,26 @@ test("ID inventado é rejeitado e a interface permite tentar novamente", async (
   await page.getByRole("button", { name: "Analisar com IA", exact: true }).click();
   await expect(page.getByRole("tab", { name: "Sumário rastreável" })).toBeVisible();
 });
+
+for (const excessive of ["bytes", "coleção interna"]) {
+  test(`resposta com excesso de ${excessive} é descartada e permite nova análise`, async ({ page }) => {
+    let invalid = true;
+    await setup(page, { generate: (route) => route.fulfill({ json: invalid
+      ? { done: true, response: excessive === "bytes" ? "SEGREDO".repeat(160_000)
+        : JSON.stringify({ summary: Array(20_001).fill(null), absa: [] }) }
+      : envelope() }) });
+    await upload(page);
+    await page.getByRole("button", { name: "Analisar com IA", exact: true }).click();
+    const alert = page.getByRole("region", { name: "Analisar com o Ollama" }).getByRole("alert");
+    await expect(alert).toContainText(/limite local|contrato JSON/);
+    await expect(alert).not.toContainText("SEGREDO");
+    await expect(page.getByRole("tab", { name: "Sumário rastreável" })).toHaveCount(0);
+    await expect(page.getByRole("article", { name: "RAW · ORIGINAL" })).toContainText("Ana Silva");
+    invalid = false;
+    await page.getByRole("button", { name: "Analisar com IA", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "Sumário rastreável" })).toBeVisible();
+  });
+}
 
 test("modelo incompatível é bloqueado antes de receber comentários", async ({ page }) => {
   const { requests } = await setup(page, { thinking: ["low", "high"] });

@@ -1,6 +1,33 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { listLocalModels, verifyLocalModel, requestOllama } from "../lib/ollamaConnection.ts";
+import { MAX_OLLAMA_RESPONSE_BYTES, MAX_OLLAMA_JSON_NODES } from "../lib/jsonLimits.ts";
+
+test("respostas excessivas são rejeitadas sem revelar conteúdo e permitem nova consulta", async (t) => {
+  let response = () => new Response("SEGREDO".repeat(MAX_OLLAMA_RESPONSE_BYTES / 7 + 1));
+  browser(t, async () => response());
+  await assert.rejects(listLocalModels(), (error) => error.message.includes("limite local") && !error.message.includes("SEGREDO"));
+  response = () => Response.json({ models: Array(MAX_OLLAMA_JSON_NODES).fill(0) });
+  await assert.rejects(listLocalModels(), /complexidade JSON/);
+  response = () => Response.json({ models: [{ name: "deepseek-r1:latest" }] });
+  assert.deepEqual(await listLocalModels(), ["deepseek-r1:latest"]);
+});
+
+test("timeout enquanto recebe o corpo cancela a leitura parcial", async (t) => {
+  let cancelled = false;
+  let receiving;
+  const started = new Promise((resolve) => { receiving = resolve; });
+  browser(t, async () => new Response(new ReadableStream({
+    start(controller) { controller.enqueue(new TextEncoder().encode('{"models":')); receiving(); },
+    cancel() { cancelled = true; },
+  })));
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const pending = listLocalModels();
+  await started;
+  t.mock.timers.tick(10_000);
+  await assert.rejects(pending, /10 segundos/);
+  assert.equal(cancelled, true);
+});
 
 function browser(t, fn) {
   Object.defineProperty(globalThis, "window", { value: {}, configurable: true });
@@ -8,7 +35,7 @@ function browser(t, fn) {
   return t.mock.method(globalThis, "fetch", fn);
 }
 
-test("lista somente DeepSeek locais e descarta duplicatas ou aliases remotos", async (t) => {
+test("lista somente DeepSeek e Llama 3.1 locais e descarta duplicatas ou aliases remotos", async (t) => {
   browser(t, async (url, options) => {
     assert.equal(url, "http://localhost:11434/api/tags");
     assert.equal(options.method, "GET");
@@ -17,10 +44,11 @@ test("lista somente DeepSeek locais e descarta duplicatas ou aliases remotos", a
     return Response.json({ models: [
       { name: "deepseek-r1:latest" }, { name: "deepseek-r1:8b" },
       { name: "deepseek-r1:latest" }, { name: "llama3.1:latest" },
+      { name: "llama3.1:cloud" }, { name: "mistral:latest" },
       { name: "deepseek-r1:cloud" }, { name: "deepseek-r1:70b", remote_host: "https://cloud.example" },
     ] });
   });
-  assert.deepEqual(await listLocalModels(), ["deepseek-r1:8b", "deepseek-r1:latest"]);
+  assert.deepEqual(await listLocalModels(), ["deepseek-r1:8b", "deepseek-r1:latest", "llama3.1:latest"]);
 });
 
 test("verifica capacidades e bloqueia modelos remotos antes de enviar comentários", async (t) => {
@@ -35,7 +63,7 @@ test("verifica capacidades e bloqueia modelos remotos antes de enviar comentári
     await assert.rejects(verifyLocalModel("deepseek-r1:latest"), /precisa executar localmente/);
   }
   const count = fetchMock.mock.callCount();
-  for (const name of ["https://example.com", "llama3.1", "deepseek-r1:cloud"]) await assert.rejects(verifyLocalModel(name), /DeepSeek-R1 local/);
+  for (const name of ["https://example.com", "mistral:latest", "deepseek-r1:cloud", "llama3.1:cloud"]) await assert.rejects(verifyLocalModel(name), /modelo local compatível/);
   assert.equal(fetchMock.mock.callCount(), count);
 });
 

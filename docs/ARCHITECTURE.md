@@ -20,13 +20,15 @@ antigas não atualizam o estado. Não há fallback síncrono se o Worker falhar.
 
 ## 2. Comunicação com a IA (Ollama Local)
 * É proibido o uso de APIs comerciais em nuvem (OpenAI, Gemini).
-* O frontend se comunica diretamente com o modelo local (DeepSeek-R1) via `Fetch API` apontada para `http://localhost:11434/api/generate`.
-* O payload obrigatoriamente terá `"temperature": 0.0`, `think: false`, `stream: false` e JSON Schema gerado do Zod. Temperatura zero reduz variação; não garante determinismo entre ambientes nem correção semântica.
-* `/api/tags` lista modelos locais e `/api/show` verifica capacidades e valores de thinking. Sem metadados explícitos, uma sonda sintética valida o comportamento observado antes de enviar SANITIZED. Essa verificação pode adicionar uma requisição de geração e não é prova universal do comportamento futuro do modelo.
+* O frontend se comunica diretamente com o modelo local (`DeepSeek-R1` ou `Llama 3.1`) via `Fetch API` apontada para `http://localhost:11434/api/generate`.
+* O payload obrigatoriamente terá `"temperature": 0.0`, `think: false`, `stream: false`, instrução de JSON compacto em linha única e JSON Schema gerado do Zod. Caso um lote com múltiplos comentários atinja `done_reason === "length"`, `lib/ollama.ts` subdivide o lote ao meio e reprocessa as metades menores; se um comentário único atingir o limite, a análise é rejeitada sem exibir resultado parcial. Temperatura zero reduz variação; não garante determinismo entre ambientes nem correção semântica.
+* `/api/tags` lista modelos locais (`deepseek-r1` e `llama3.1`) e `/api/show` verifica capacidades e valores de thinking. Sem metadados explícitos, uma sonda sintética valida o comportamento observado antes de enviar SANITIZED. Essa verificação pode adicionar uma requisição de geração e não é prova universal do comportamento futuro do modelo.
+* Zod 4 gera o JSON Schema Draft 7 pela API nativa. Antes da validação, `lib/jsonLimits.ts` limita cada corpo HTTP a 1 MiB e cada JSON a 20.000 nós/profundidade 32, incluindo a resposta interna da análise. Cancelamento e timeout encerram também a leitura parcial. Limites e semântica estão em `AI_CONTRACT.md`.
 
-## 3. Interface em Duas Abas
+## 3. Interface em Duas Abas e Exportação Local
 * **Aba 1 (Sumarização):** Síntese gerada com marcadores numéricos interativos.
 * **Aba 2 (Classificação ABSA):** Tabelas e gráficos filtráveis por 5 eixos temáticos (Didática, Infraestrutura, Assiduidade, Relacionamento, Avaliação) e 3 polaridades (Positivo, Negativo, Neutro).
+* **Exportação Local Sob Demanda:** `lib/results.ts` e `components/ResultsPanel.tsx` permitem baixar em memória (`Blob` + `URL.createObjectURL`) uma planilha Excel completa (`.xlsx` com 4 abas: `Dashboard`, `Sumarização`, `Classificações ABSA` e `Consolidado por ID`), além da sumarização (`.txt`), do dashboard ABSA (`.csv` UTF-8 com BOM) e do resultado estruturado (`.json` no contrato `AnalysisResult`). Nenhum texto `RAW` ou `SANITIZED` é incluído nos arquivos exportados.
 
 ## 4. Validação e ferramentas de desenvolvimento
 

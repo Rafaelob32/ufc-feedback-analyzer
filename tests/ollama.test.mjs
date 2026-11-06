@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 import { AnalysisResultSchema } from "../lib/schema.ts";
 import { analyzeComments, OLLAMA_MODEL, OllamaError, parseAnalysisResponse, planAnalysisBatches } from "../lib/ollama.ts";
 import { parseXlsxFile } from "../lib/xlsxParser.ts";
@@ -63,7 +63,8 @@ test("o contrato mantém aspects/sentiment, enums exatos e coleções internas n
 });
 
 test("a conversão produz um JSON Schema completo, incluindo os aspectos aninhados", () => {
-  const schema = zodToJsonSchema(AnalysisResultSchema);
+  const schema = z.toJSONSchema(AnalysisResultSchema, { target: "draft-7" });
+  assert.equal(schema.$schema, "http://json-schema.org/draft-07/schema#");
   assert.equal(schema.type, "object");
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, ["summary", "absa"]);
@@ -71,6 +72,10 @@ test("a conversão produz um JSON Schema completo, incluindo os aspectos aninhad
   assert.equal(summary.properties.evidenceIds.minItems, 1);
   assert.equal(summary.properties.evidenceIds.items.type, "integer");
   const absa = schema.properties.absa.items;
+  assert.equal(absa.properties.commentId.minimum, Number.MIN_SAFE_INTEGER);
+  assert.equal(absa.properties.commentId.maximum, Number.MAX_SAFE_INTEGER);
+  assert.equal(schema.properties.summary.maxItems, undefined);
+  assert.equal(schema.properties.absa.maxItems, undefined);
   assert.deepEqual(absa.required, ["commentId", "aspects"]);
   assert.equal(absa.properties.aspects.minItems, 1);
   assert.deepEqual(absa.properties.aspects.items.properties.aspect.enum,
@@ -91,6 +96,16 @@ test("rejeita JSON malformado, fences, schema inválido e raciocínio incompleto
     assert.throws(() => parseAnalysisResponse(text, ids), (error) =>
       error instanceof OllamaError && !error.message.includes("SEGREDO"));
   }
+});
+
+test("aberturas think repetidas e tags aninhadas falham antes da limpeza", () => {
+  for (const text of ["<think>".repeat(20_000), "<think><think>SEGREDO</think></think>", "<think atributo>SEGREDO</think>"]) {
+    assert.throws(() => parseAnalysisResponse(text, ids), (error) =>
+      error instanceof OllamaError && error.message.includes("incompleto") && !error.message.includes("SEGREDO"));
+  }
+  const nested = validResult();
+  nested.summary[0].text = "<think>".repeat(20_000);
+  assert.throws(() => parseAnalysisResponse(JSON.stringify(nested).replaceAll("<", "\\u003c"), ids), /incompleto/);
 });
 
 test("rejeita IDs inventados em qualquer evidência ou classificação", () => {
@@ -131,7 +146,7 @@ test("a planilha passa por sanitização e somente id/text mascarados entram no 
   assert.equal(sent.think, false);
   assert.equal(sent.stream, false);
   assert.deepEqual(sent.options, { temperature: 0, num_ctx: 8192, num_predict: 2048 });
-  assert.deepEqual(sent.format, zodToJsonSchema(AnalysisResultSchema));
+  assert.deepEqual(sent.format, z.toJSONSchema(AnalysisResultSchema, { target: "draft-7" }));
   assert.deepEqual(JSON.parse(sent.prompt), { comments: sanitized });
   const serialized = JSON.stringify(sent);
   for (const original of ["Ana Silva", "ana.teste@example.test", "123456", "sheetName", "rowIndex", "comentarios.xlsx"]) {
@@ -261,6 +276,34 @@ test("não aceita saída truncada e não envia nada se houver comentário grande
   const count = fetchMock.mock.callCount();
   await assert.rejects(analyzeComments([{ id: 2, text: "a".repeat(3000) }]), /limite de 3.000/);
   assert.equal(fetchMock.mock.callCount(), count);
+});
+
+test("subdivide automaticamente lotes com múltiplos comentários quando ocorre done_reason length", async (t) => {
+  const calls = [];
+  browser(t, async (_url, options) => {
+    const batch = JSON.parse(JSON.parse(options.body).prompt).comments;
+    calls.push(batch.map(({ id }) => id));
+    if (batch.length > 2) {
+      return Response.json({ done: true, done_reason: "length", response: '{"summary":[' });
+    }
+    return Response.json({
+      done: true,
+      response: JSON.stringify({
+        summary: [{ text: "Ponto", evidenceIds: [batch[0].id] }],
+        absa: batch.map(({ id }) => ({ commentId: id, aspects: [{ aspect: "Didática", sentiment: "Positivo" }] })),
+      }),
+    });
+  });
+  const comments = [
+    { id: 2, text: "Comentário 2" },
+    { id: 4, text: "Comentário 4" },
+    { id: 6, text: "Comentário 6" },
+    { id: 8, text: "Comentário 8" },
+  ];
+  const result = await analyzeComments(comments);
+  assert.deepEqual(calls, [[2, 4, 6, 8], [2, 4], [6, 8]]);
+  assert.equal(result.absa.length, 4);
+  assert.equal(result.summary.length, 2);
 });
 
 test("cancelar após um lote impede o envio do lote seguinte", async (t) => {
